@@ -18,18 +18,27 @@
 
     function updateGeolocation() {
       navigator.geolocation.getCurrentPosition(function(pos) {
-        console.log(pos.coords.latitude, pos.coords.longitude);
-        var latLng = new google.maps.LatLng(pos.coords.latitude,
-                                            pos.coords.longitude);
-        marker.setPosition(latLng);
+        var position = {
+          'lat': pos.coords.latitude,
+          'lng': pos.coords.longitude
+        };
+
+        // Update marker on rendered map.
+        marker.setPosition(position);
+
+        // Post player's location to server.
+        $.ajax({
+          type: 'POST',
+          url: 'http://localhost:56582',
+          data: JSON.stringify(position),
+          dataType: 'json',  // Expected response type.
+        }).done(function(res) {
+          console.log(res);
+        });
       });
     }
 
     function callback() {
-      setInterval(updateGeolocation, 1000);
-    }
-
-    $(document).ready(function() {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(function(pos) {
           var latLng = new google.maps.LatLng(pos.coords.latitude,
@@ -44,12 +53,15 @@
             map: map,
             title: "Dmitry"
           });
+          setInterval(updateGeolocation, 1000);
         });
-
-        $.getJSON("https://maps.googleapis.com/maps/api/js?callback=?", callback)
       } else {
         console.log('Browser not supports geolocation');
       }
+    }
+
+    $(document).ready(function() {
+      $.getJSON("https://maps.googleapis.com/maps/api/js?callback=?", callback)
     });
   </script>
 
