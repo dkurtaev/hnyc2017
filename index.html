@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+  <!-- jQuery -->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+
+  <style>
+    html, body {
+      height: 100%;
+    }
+  </style>
+
+  <script>
+    var map = null;
+    var marker = null;
+
+    function updateGeolocation() {
+      navigator.geolocation.getCurrentPosition(function(pos) {
+        console.log(pos.coords.latitude, pos.coords.longitude);
+        var latLng = new google.maps.LatLng(pos.coords.latitude,
+                                            pos.coords.longitude);
+        marker.setPosition(latLng);
+      });
+    }
+
+    function callback() {
+      setInterval(updateGeolocation, 1000);
+    }
+
+    $(document).ready(function() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(pos) {
+          var latLng = new google.maps.LatLng(pos.coords.latitude,
+                                              pos.coords.longitude);
+          var params = {
+            center: latLng,
+            zoom: 17
+          };
+          map = new google.maps.Map(document.getElementById("map"), params);
+          marker = new google.maps.Marker({
+            position: latLng,
+            map: map,
+            title: "Dmitry"
+          });
+        });
+
+        $.getJSON("https://maps.googleapis.com/maps/api/js?callback=?", callback)
+      } else {
+        console.log('Browser not supports geolocation');
+      }
+    });
+  </script>
+
+</head>
+
+<body>
+
+  <div id="map" style="width: 100%; height: 100%">
+  </div>
+
+</body>
+
+</html>
