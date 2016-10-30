@@ -45,11 +45,12 @@
         url: 'http://localhost:56582',
         dataType: 'json'  // Expected response type.
       }).done(function(players) {
-
-        // Update exists markers and remove old markers.
+        // Remove old markers (without actual players).
         markers = markers.filter(function(marker) {
-          if (marker.title in players) {
-            marker.setPosition(players[marker.title]);
+          var player = players.find(function(player) {
+            return marker.title === player.name;
+          });
+          if (player !== undefined) {
             return true;
           } else {
             marker.setMap(null);
@@ -57,23 +58,21 @@
           }
         });
 
-        // Add new markers.
-        for (key in players) {
-          var isNew = true;
-          for (var i = 0, l = markers.length; i < l; ++i) {
-            if (markers[i].title === key) {
-              isNew = false;
-              break;
-            }
-          }
-          if (isNew) {
+        // Add new markers or update exists.
+        players.forEach(function(player) {
+          var marker = markers.find(function(marker) {
+            return marker.title === player.name;
+          });
+          if (marker !== undefined) {
+            marker.setPosition(player.position);
+          } else {
             markers.push(new google.maps.Marker({
-              position: players[key],
+              position: player.position,
               map: map,
-              title: key
+              title: player.name
             }));
           }
-        }
+        });
       });
     }
 
