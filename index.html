@@ -14,45 +14,80 @@
 
   <script>
     var map = null;
-    var marker = null;
+    var markers = [];
+    var playerName = "Dmitry";
 
     function updateGeolocation() {
       navigator.geolocation.getCurrentPosition(function(pos) {
-        var position = {
-          'lat': pos.coords.latitude,
-          'lng': pos.coords.longitude
+        // Post player's location to server.
+        var playerData = {
+          name: playerName,
+          position: {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude
+          }
         };
 
-        // Update marker on rendered map.
-        marker.setPosition(position);
-
-        // Post player's location to server.
         $.ajax({
           type: 'POST',
           url: 'http://localhost:56582',
-          data: JSON.stringify(position),
+          data: JSON.stringify(playerData),
           dataType: 'json',  // Expected response type.
         }).done(function(res) {
-          console.log(res);
+          updateMarkers();
         });
+      });
+    }
+
+    function updateMarkers() {
+      $.ajax({
+        type: 'GET',
+        url: 'http://localhost:56582',
+        dataType: 'json'  // Expected response type.
+      }).done(function(players) {
+
+        // Update exists markers and remove old markers.
+        markers = markers.filter(function(marker) {
+          if (marker.title in players) {
+            marker.setPosition(players[marker.title]);
+            return true;
+          } else {
+            marker.setMap(null);
+            return false;
+          }
+        });
+
+        // Add new markers.
+        for (key in players) {
+          var isNew = true;
+          for (var i = 0, l = markers.length; i < l; ++i) {
+            if (markers[i].title === key) {
+              isNew = false;
+              break;
+            }
+          }
+          if (isNew) {
+            markers.push(new google.maps.Marker({
+              position: players[key],
+              map: map,
+              title: key
+            }));
+          }
+        }
       });
     }
 
     function callback() {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(function(pos) {
-          var latLng = new google.maps.LatLng(pos.coords.latitude,
-                                              pos.coords.longitude);
-          var params = {
-            center: latLng,
+          var mapParams = {
+            center: {
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude
+            },
             zoom: 17
           };
-          map = new google.maps.Map(document.getElementById("map"), params);
-          marker = new google.maps.Marker({
-            position: latLng,
-            map: map,
-            title: "Dmitry"
-          });
+          map = new google.maps.Map(document.getElementById("map"), mapParams);
           setInterval(updateGeolocation, 1000);
         });
       } else {
