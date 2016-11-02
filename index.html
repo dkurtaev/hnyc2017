@@ -14,42 +14,88 @@
 
   <script>
     var map = null;
-    var marker = null;
+    var markers = [];
+    var playerName = "Dmitry";
 
     function updateGeolocation() {
       navigator.geolocation.getCurrentPosition(function(pos) {
-        console.log(pos.coords.latitude, pos.coords.longitude);
-        var latLng = new google.maps.LatLng(pos.coords.latitude,
-                                            pos.coords.longitude);
-        marker.setPosition(latLng);
+        // Post player's location to server.
+        var playerData = {
+          name: playerName,
+          position: {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude
+          }
+        };
+
+        $.ajax({
+          type: 'POST',
+          url: 'http://localhost:56582',
+          data: JSON.stringify(playerData),
+          dataType: 'json',  // Expected response type.
+        }).done(function(res) {
+          updateMarkers();
+        });
+      });
+    }
+
+    function updateMarkers() {
+      $.ajax({
+        type: 'GET',
+        url: 'http://localhost:56582',
+        dataType: 'json'  // Expected response type.
+      }).done(function(players) {
+        // Remove old markers (without actual players).
+        markers = markers.filter(function(marker) {
+          var player = players.find(function(player) {
+            return marker.title === player.name;
+          });
+          if (player !== undefined) {
+            return true;
+          } else {
+            marker.setMap(null);
+            return false;
+          }
+        });
+
+        // Add new markers or update exists.
+        players.forEach(function(player) {
+          var marker = markers.find(function(marker) {
+            return marker.title === player.name;
+          });
+          if (marker !== undefined) {
+            marker.setPosition(player.position);
+          } else {
+            markers.push(new google.maps.Marker({
+              position: player.position,
+              map: map,
+              title: player.name
+            }));
+          }
+        });
       });
     }
 
     function callback() {
-      setInterval(updateGeolocation, 1000);
-    }
-
-    $(document).ready(function() {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(function(pos) {
-          var latLng = new google.maps.LatLng(pos.coords.latitude,
-                                              pos.coords.longitude);
-          var params = {
-            center: latLng,
+          var mapParams = {
+            center: {
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude
+            },
             zoom: 17
           };
-          map = new google.maps.Map(document.getElementById("map"), params);
-          marker = new google.maps.Marker({
-            position: latLng,
-            map: map,
-            title: "Dmitry"
-          });
+          map = new google.maps.Map(document.getElementById("map"), mapParams);
+          setInterval(updateGeolocation, 1000);
         });
-
-        $.getJSON("https://maps.googleapis.com/maps/api/js?callback=?", callback)
       } else {
         console.log('Browser not supports geolocation');
       }
+    }
+
+    $(document).ready(function() {
+      $.getJSON("https://maps.googleapis.com/maps/api/js?callback=?", callback)
     });
   </script>
 
