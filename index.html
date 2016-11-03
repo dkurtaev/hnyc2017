@@ -30,7 +30,7 @@
 
         $.ajax({
           type: 'POST',
-          url: 'http://localhost:56582',
+          url: 'http://localhost:56582/geolocation',
           data: JSON.stringify(playerData),
           dataType: 'json',  // Expected response type.
         }).done(function(res) {
