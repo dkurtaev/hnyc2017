@@ -14,14 +14,14 @@
 
   <script>
     var map = null;
+    var authKey = null;
     var markers = [];
-    var playerName = "Dmitry";
 
     function updateGeolocation() {
       navigator.geolocation.getCurrentPosition(function(pos) {
         // Post player's location to server.
         var playerData = {
-          name: playerName,
+          authKey: authKey,
           position: {
             lat: pos.coords.latitude,
             lng: pos.coords.longitude
@@ -30,7 +30,7 @@
 
         $.ajax({
           type: 'POST',
-          url: 'http://localhost:56582',
+          url: 'http://hnyc2017.ddns.net:56582/geolocation',
           data: JSON.stringify(playerData),
           dataType: 'json',  // Expected response type.
         }).done(function(res) {
@@ -42,9 +42,10 @@
     function updateMarkers() {
       $.ajax({
         type: 'GET',
-        url: 'http://localhost:56582',
+        url: 'http://hnyc2017.ddns.net:56582/players?authKey=' + authKey,
         dataType: 'json'  // Expected response type.
-      }).done(function(players) {
+      }).done(function(res) {
+        var players = res.players;
         // Remove old markers (without actual players).
         markers = markers.filter(function(marker) {
           var player = players.find(function(player) {
@@ -95,6 +96,8 @@
     }
 
     $(document).ready(function() {
+      // TODO: check authKey existance
+      authKey = document.URL.match(/authKey=(.*)/)[1];
       $.getJSON("https://maps.googleapis.com/maps/api/js?callback=?", callback)
     });
   </script>
