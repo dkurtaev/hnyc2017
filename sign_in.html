@@ -20,12 +20,12 @@
 
       $.ajax({
         type: 'POST',
-        url: 'http://localhost:56582/sign_in',
+        url: 'http://hnyc2017.ddns.net:56582/sign_in',
         data: window.btoa(JSON.stringify(data)),
         dataType: 'json',  // Expected response type.
       }).done(function(res) {
         if (!res.error) {
-          var url = 'http://localhost:8000?authKey=' + res.authKey;
+          var url = 'index.html?authKey=' + res.authKey;
           window.location.replace(url);
         } else {
           console.error(res.error);
