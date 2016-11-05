@@ -10,9 +10,12 @@
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
 
+  <!-- For russian symbols -->
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 
   <script>
+    var host = window.atob('aHR0cDovL2hueWMyMDE3LmRkbnMubmV0OjU2NTgy');
+
     function isValid(name, pass, passCheck) {
       if (name.length <= 2) {
         window.alert('Необходимо ввести имя длины более 2 символов');
@@ -50,9 +53,10 @@
 
       $.ajax({
         type: 'POST',
-        url: 'http://hnyc2017.ddns.net:56582/sign_up',
+        url: host + '/sign_up',
         data: window.btoa(JSON.stringify(data)),
         dataType: 'json',  // Expected response type.
+        timeout: 3000
       }).done(function(res) {
         if (!res.error) {
           window.alert('Регистрация выполнена успешно!');
@@ -61,6 +65,8 @@
         } else {
           window.alert('Ошибка: ' + res.error);
         }
+      }).fail(function() {
+        window.alert('Потеряно соединение с сервером.');
       });
     }
 
@@ -76,9 +82,10 @@
 
       $.ajax({
         type: 'POST',
-        url: 'http://hnyc2017.ddns.net:56582/sign_in',
+        url: host + '/sign_in',
         data: window.btoa(JSON.stringify(data)),
         dataType: 'json',  // Expected response type.
+        timeout: 3000
       }).done(function(res) {
         if (!res.error) {
           var url = 'map.html?authKey=' + res.authKey;
@@ -86,6 +93,8 @@
         } else {
           window.alert('Ошибка: ' + res.error);
         }
+      }).fail(function() {
+        window.alert('Потеряно соединение с сервером.');
       });
     }
 
