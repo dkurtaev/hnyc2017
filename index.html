@@ -1,114 +1,144 @@
 <!DOCTYPE html>
 
-<html>
+<html lang="ru">
 
 <head>
   <!-- jQuery -->
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
 
-  <style>
-    html, body {
-      height: 100%;
-    }
-  </style>
+  <!-- Bootstrap -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 
   <script>
-    var map = null;
-    var authKey = null;
-    var markers = [];
-
-    function updateGeolocation() {
-      navigator.geolocation.getCurrentPosition(function(pos) {
-        // Post player's location to server.
-        var playerData = {
-          authKey: authKey,
-          position: {
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude
-          }
-        };
-
-        $.ajax({
-          type: 'POST',
-          url: 'http://hnyc2017.ddns.net:56582/geolocation',
-          data: JSON.stringify(playerData),
-          dataType: 'json',  // Expected response type.
-        }).done(function(res) {
-          updateMarkers();
-        });
-      });
-    }
-
-    function updateMarkers() {
-      $.ajax({
-        type: 'GET',
-        url: 'http://hnyc2017.ddns.net:56582/players?authKey=' + authKey,
-        dataType: 'json'  // Expected response type.
-      }).done(function(res) {
-        var players = res.players;
-        // Remove old markers (without actual players).
-        markers = markers.filter(function(marker) {
-          var player = players.find(function(player) {
-            return marker.title === player.name;
-          });
-          if (player !== undefined) {
-            return true;
-          } else {
-            marker.setMap(null);
-            return false;
-          }
-        });
-
-        // Add new markers or update exists.
-        players.forEach(function(player) {
-          var marker = markers.find(function(marker) {
-            return marker.title === player.name;
-          });
-          if (marker !== undefined) {
-            marker.setPosition(player.position);
-          } else {
-            markers.push(new google.maps.Marker({
-              position: player.position,
-              map: map,
-              title: player.name
-            }));
-          }
-        });
-      });
-    }
-
-    function callback() {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(function(pos) {
-          var mapParams = {
-            center: {
-              lat: pos.coords.latitude,
-              lng: pos.coords.longitude
-            },
-            zoom: 17
-          };
-          map = new google.maps.Map(document.getElementById("map"), mapParams);
-          setInterval(updateGeolocation, 1000);
-        });
-      } else {
-        console.log('Browser not supports geolocation');
+    function isValid(name, pass, passCheck) {
+      if (name.length <= 2) {
+        window.alert('Необходимо ввести имя длины более 2 символов');
+        return false;
       }
+      if (name.match(/[^a-zA-Z]/)) {
+        window.alert('Имя должно состоять только из букв латинского алфавита, a-z A-Z');
+        return false;
+      }
+      if (pass.length <= 3) {
+        window.alert('Необходимо ввести пароль длины более 3 символов');
+        return false;
+      }
+      if (pass.match(/[^a-zA-Z0-9]/)) {
+        window.alert('Пароль должен состоять только из букв и цифр, a-z A-Z 0-9');
+        return false;
+      }
+      if (passCheck !== undefined && passCheck !== pass) {
+        window.alert('Введённые пароли должны совпадать');
+        return false;
+      }
+      return true;
+    }
+
+    function signUp() {
+      var name = $("#signup_name").val();
+      var pass = $("#signup_pass").val();
+      var passCheck = $("#signup_passCheck").val();
+
+      if (!isValid(name, pass, passCheck)) {
+        return;
+      }
+
+      var data = {name: name, pass: pass};
+
+      $.ajax({
+        type: 'POST',
+        url: 'http://hnyc2017.ddns.net:56582/sign_up',
+        data: window.btoa(JSON.stringify(data)),
+        dataType: 'json',  // Expected response type.
+      }).done(function(res) {
+        if (!res.error) {
+          window.alert('Регистрация выполнена успешно!');
+          $("#sign_up_form").hide();
+          $("#buttons").show();
+        } else {
+          window.alert('Ошибка: ' + res.error);
+        }
+      });
+    }
+
+    function signIn() {
+      var name = $("#signin_name").val();
+      var pass = $("#signin_pass").val();
+
+      if (!isValid(name, pass)) {
+        return;
+      }
+
+      var data = {name: name, pass: pass};
+
+      $.ajax({
+        type: 'POST',
+        url: 'http://hnyc2017.ddns.net:56582/sign_in',
+        data: window.btoa(JSON.stringify(data)),
+        dataType: 'json',  // Expected response type.
+      }).done(function(res) {
+        if (!res.error) {
+          var url = 'map.html?authKey=' + res.authKey;
+          window.location.replace(url);
+        } else {
+          window.alert('Ошибка: ' + res.error);
+        }
+      });
     }
 
     $(document).ready(function() {
-      // TODO: check authKey existance
-      authKey = document.URL.match(/authKey=(.*)/)[1];
-      $.getJSON("https://maps.googleapis.com/maps/api/js?callback=?", callback)
+      $("#sign_up_form").hide();
+      $("#sign_in_form").hide();
     });
   </script>
-
 </head>
 
 <body>
 
-  <div id="map" style="width: 100%; height: 100%">
+  <div class="container-fluid">
+
+    <div style="margin: 20% auto 20% auto; width: 300px">
+      <p>Happy New Year Challenge 2017<br>v0.1</p>
+
+    <div id="buttons" class="row">
+      <div class="col-xs-6">
+          <button class="btn btn-block btn-primary"
+                  onclick='$("#buttons").hide(); $("#sign_in_form").show()'>
+            Вход
+          </button>
+      </div>
+      <div class="col-xs-6">
+        <button class="btn btn-block btn-primary"
+                onclick='$("#buttons").hide(); $("#sign_up_form").show()'>
+         Регистрация
+       </button>
+      </div>
+    </div>
+
+    <div id="sign_up_form" style="margin: 0% auto 0% auto; width: 150px">
+      <p>Регистрация</p>
+      <form onsubmit="signUp(); return false;">
+        <input id="signup_name" type="text" placeholder="Имя" class="form-control" maxlength="16">
+        <input id="signup_pass" type="password" placeholder="Пароль" class="form-control" maxlength="16">
+        <input id="signup_passCheck" type="password" placeholder="Пароль ещё раз" class="form-control" maxlength="16">
+        <button type="submit" class="btn btn-block btn-primary">Готово!</button>
+      </form>
+    </div>
+
+    <div id="sign_in_form" style="margin: 0% auto 0% auto; width: 150px">
+      <p>Вход</p>
+      <form onsubmit="signIn(); return false;">
+        <input id="signin_name" type="text" placeholder="Имя" class="form-control" maxlength="16">
+        <input id="signin_pass" type="password" placeholder="Пароль" class="form-control" maxlength="16">
+        <button type="submit" class="btn btn-block btn-primary">Готово!</button>
+      </form>
+    </div>
   </div>
 
+  </div>
 </body>
 
 </html>
