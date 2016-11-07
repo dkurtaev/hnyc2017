@@ -1,6 +1,7 @@
-var http = require('http');
-var atob = require('atob');
+var fs = require('fs');
 var url = require('url');
+var https = require('https');
+var atob = require('atob');
 var PlayersDB = require('./players_db.js');
 
 // Each player has properties:
@@ -27,7 +28,9 @@ var RESPONSES = {
   UNAUTHORIZED:
     JSON.stringify({status: 401, error: 'Unauthorized request.'}),
   METHOD_NOT_ALOWED:
-    JSON.stringify({status: 405, error: 'Unknown request URL.'})
+    JSON.stringify({status: 405, error: 'Unknown request URL.'}),
+  SERVER_ERR:
+    JSON.stringify({status: 500, error: 'Internal server error.'})
 };
 
 function log(msg) {
@@ -35,9 +38,6 @@ function log(msg) {
 }
 
 var callback = function(req, res) {
-  res.end('<!DOCTYPE html> <html><p><b>Text</b></p></html>');
-  return;
-
   var now = new Date();
   var responseData = {
     status: 200,  // Ok.
@@ -70,27 +70,40 @@ var callback = function(req, res) {
   if (req.method === 'GET') {
     var requestData = url.parse(req.url, true);
 
-    if (requestData.pathname !== '/players') {
-      res.end(RESPONSES.METHOD_NOT_ALOWED);
-      return;
+    switch (requestData.pathname) {
+
+      case '/players': {
+        // Check client authorization.
+        var player = players.find(function(player) {
+          return player.authKey === requestData.query.authKey;
+        });
+        if (player === undefined) {
+          res.end(RESPONSES.UNAUTHORIZED);
+          return;
+        }
+
+        responseData.players = players.filter(function(player) {
+          return player.position !== null;
+        }).map(function(player) {
+          return {name: player.name, position: player.position};
+        });
+
+        res.end(JSON.stringify(responseData));
+        break;
+      }
+
+      case '/index.html': case '/map.html': {
+        var callback = function(err, data) {
+          res.end(!err ? data : RESPONSES.SERVER_ERR);
+        };
+        fs.readFile('client' + requestData.pathname, 'utf8', callback);
+        break;
+      }
+
+      default:
+        res.end(RESPONSES.METHOD_NOT_ALOWED);
+        break;
     }
-
-    // Check client authorization.
-    var player = players.find(function(player) {
-      return player.authKey === requestData.query.authKey;
-    });
-    if (player === undefined) {
-      res.end(RESPONSES.UNAUTHORIZED);
-      return;
-    }
-
-    responseData.players = players.filter(function(player) {
-      return player.position !== null;
-    }).map(function(player) {
-      return {name: player.name, position: player.position};
-    });
-
-    res.end(JSON.stringify(responseData));
   }
 
   req.on('data', function(data) {
@@ -211,5 +224,9 @@ var callback = function(req, res) {
   });
 };
 
-var server = http.createServer(callback);
+var options = {
+  key: fs.readFileSync('key.pem'),
+  cert: fs.readFileSync('cert.pem')
+};
+var server = https.createServer(options, callback);
 server.listen(56582);

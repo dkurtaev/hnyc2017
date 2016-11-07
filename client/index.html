@@ -14,7 +14,7 @@
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 
   <script>
-    var host = window.atob('aHR0cDovL2hueWMyMDE3LmRkbnMubmV0OjU2NTgy');
+    var host = window.atob('aHR0cHM6Ly9obnljMjAxNy5kZG5zLm5ldDo1NjU4Mg==');
 
     function isValid(name, pass, passCheck) {
       if (name.length <= 2) {
@@ -88,7 +88,7 @@
         timeout: 3000
       }).done(function(res) {
         if (!res.error) {
-          var url = 'map.html?authKey=' + res.authKey;
+          var url = host + '/map.html?authKey=' + res.authKey;
           window.location.replace(url);
         } else {
           window.alert('Ошибка: ' + res.error);

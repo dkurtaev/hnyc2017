@@ -19,7 +19,7 @@
     var map = null;
     var authKey = null;
     var markers = [];
-    var host = window.atob('aHR0cDovL2hueWMyMDE3LmRkbnMubmV0OjU2NTgy');
+    var host = window.atob('aHR0cHM6Ly9obnljMjAxNy5kZG5zLm5ldDo1NjU4Mg==');
 
     function error(msg) {
       window.alert(msg);
@@ -131,7 +131,8 @@
       var match = document.URL.match(/authKey=(.*)/);
       if (match) {
         authKey = match[1];
-        $.getJSON("https://maps.googleapis.com/maps/api/js?callback=?", callback)
+        $.getJSON(window.atob('aHR0cHM6Ly9tYXBzLmdvb2dsZWFwaXMuY29tL21hcHMvYXBpL2pzP2tleT1BSXphU3lDODlnWC1RRFpVc0ItWmoxLWRFN0E3VHJSckFKdUhNWGsmY2FsbGJhY2s9Pw=='),
+                  callback)
       } else {
         error('Unauthentificated request.');
       }
