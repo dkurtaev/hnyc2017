@@ -1,10 +1,13 @@
 <!DOCTYPE html>
 
-<html>
+<html lang="ru">
 
 <head>
   <!-- jQuery -->
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+
+  <!-- For russian symbols -->
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 
   <style>
     html, body {
@@ -16,6 +19,12 @@
     var map = null;
     var authKey = null;
     var markers = [];
+    var host = window.atob('aHR0cHM6Ly9obnljMjAxNy5kZG5zLm5ldDo1NjU4Mg==');
+
+    function error(msg) {
+      window.alert(msg);
+      window.location = 'index.html';
+    }
 
     function updateGeolocation() {
       navigator.geolocation.getCurrentPosition(function(pos) {
@@ -30,21 +39,37 @@
 
         $.ajax({
           type: 'POST',
-          url: 'http://hnyc2017.ddns.net:56582/geolocation',
+          url: host + '/geolocation',
           data: JSON.stringify(playerData),
           dataType: 'json',  // Expected response type.
-        }).done(function(res) {
-          updateMarkers();
+        }).done(function(response) {
+          if (!response.error) {
+            updateMarkers();
+          } else {
+            error('Ошибка: ' + response.error);
+          }
+        }).fail(function() {
+          error('Потеряно соединение с сервером.');
         });
       });
     }
 
     function updateMarkers() {
-      $.ajax({
+      var request = $.ajax({
         type: 'GET',
-        url: 'http://hnyc2017.ddns.net:56582/players?authKey=' + authKey,
+        url: host + '/players?authKey=' + authKey,
         dataType: 'json'  // Expected response type.
-      }).done(function(res) {
+      });
+
+      request.fail(function() {
+        error('Потеряно соединение с сервером.');
+      });
+
+      request.done(function(res) {
+        if (res.error) {
+          error('Ошибка: ' + res.error);
+        }
+
         var players = res.players;
         // Remove old markers (without actual players).
         markers = markers.filter(function(marker) {
@@ -88,17 +113,29 @@
             zoom: 17
           };
           map = new google.maps.Map(document.getElementById("map"), mapParams);
-          setInterval(updateGeolocation, 1000);
+
+          var interval = setInterval(updateGeolocation, 1000);
+          $(window).focus(function() {
+            interval = setInterval(updateGeolocation, 1000);
+          });
+          $(window).blur(function() {
+            clearInterval(interval);
+          });
         });
       } else {
-        console.log('Browser not supports geolocation');
+        error('Browser not supports geolocation.');
       }
     }
 
     $(document).ready(function() {
-      // TODO: check authKey existance
-      authKey = document.URL.match(/authKey=(.*)/)[1];
-      $.getJSON("https://maps.googleapis.com/maps/api/js?callback=?", callback)
+      var match = document.URL.match(/authKey=(.*)/);
+      if (match) {
+        authKey = match[1];
+        $.getJSON(window.atob('aHR0cHM6Ly9tYXBzLmdvb2dsZWFwaXMuY29tL21hcHMvYXBpL2pzP2tleT1BSXphU3lDODlnWC1RRFpVc0ItWmoxLWRFN0E3VHJSckFKdUhNWGsmY2FsbGJhY2s9Pw=='),
+                  callback)
+      } else {
+        error('Unauthentificated request.');
+      }
     });
   </script>
 

@@ -1,0 +1,24 @@
+{
+  "name": "hnyc2017",
+  "version": "1.0.0",
+  "description": "\"Happy New Year Challenge 2017\"",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dkurtaev/hnyc2017.git"
+  },
+  "author": "dkurtaev",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dkurtaev/hnyc2017/issues"
+  },
+  "homepage": "https://github.com/dkurtaev/hnyc2017#readme",
+  "dependencies": {
+    "atob": "^2.0.3",
+    "btoa": "^1.1.2",
+    "mysql": "^2.11.1"
+  }
+}
