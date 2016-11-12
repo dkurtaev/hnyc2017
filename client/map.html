@@ -19,6 +19,7 @@
     var map = null;
     var authKey = null;
     var playerMarker = null;
+    var flagsMarkers = [];
     var host = window.atob('aHR0cHM6Ly9obnljMjAxNy5kZG5zLm5ldDo1NjU4Mg==');
 
     function error(msg) {
@@ -58,6 +59,43 @@
     }
 
     function updateMarkers() {
+      var request = $.ajax({
+        type: 'GET',
+        url: host + '/flags?authKey=' + authKey,
+        dataType: 'json'  // Expected response type.
+      });
+
+      request.fail(function() {
+        error('Потеряно соединение с сервером.');
+      });
+
+      request.done(function(res) {
+        if (res.error) {
+          error('Ошибка: ' + res.error);
+        }
+
+        var flags = res.flags;
+
+        // Update flags markers.
+        var num = Math.min(flagsMarkers.length, flags.length);
+        for (var i = 0; i < num; ++i) {
+          flagsMarkers[i].setPosition(flags[i].position);
+        }
+        if (flagsMarkers.length < flags.length) {
+          for (var i = flagsMarkers.length; i < flags.length; ++i) {
+            flagsMarkers.push(new google.maps.Marker({
+              position: flags[i].position,
+              map: map,
+              icon: 'https://maps.google.com/mapfiles/kml/pal2/icon4.png'
+            }));
+          }
+        } else if (flagsMarkers.length > flags.length) {
+          for (var i = flags.length; i < flagsMarkers.length; ++i) {
+            flagsMarkers[i].setMap(null);
+          }
+          flagsMarkers = flagsMarkers.slice(0, flags.length);
+        }
+      });
     }
 
     function callback() {
