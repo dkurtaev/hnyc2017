@@ -18,7 +18,7 @@
   <script>
     var map = null;
     var authKey = null;
-    var markers = [];
+    var playerMarker = null;
     var host = window.atob('aHR0cHM6Ly9obnljMjAxNy5kZG5zLm5ldDo1NjU4Mg==');
 
     function error(msg) {
@@ -28,13 +28,16 @@
 
     function updateGeolocation() {
       navigator.geolocation.getCurrentPosition(function(pos) {
+        var position = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude
+        };
+        playerMarker.setPosition(position);
+
         // Post player's location to server.
         var playerData = {
           authKey: authKey,
-          position: {
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude
-          }
+          position: position
         };
 
         $.ajax({
@@ -55,64 +58,25 @@
     }
 
     function updateMarkers() {
-      var request = $.ajax({
-        type: 'GET',
-        url: host + '/players?authKey=' + authKey,
-        dataType: 'json'  // Expected response type.
-      });
-
-      request.fail(function() {
-        error('Потеряно соединение с сервером.');
-      });
-
-      request.done(function(res) {
-        if (res.error) {
-          error('Ошибка: ' + res.error);
-        }
-
-        var players = res.players;
-        // Remove old markers (without actual players).
-        markers = markers.filter(function(marker) {
-          var player = players.find(function(player) {
-            return marker.title === player.name;
-          });
-          if (player !== undefined) {
-            return true;
-          } else {
-            marker.setMap(null);
-            return false;
-          }
-        });
-
-        // Add new markers or update exists.
-        players.forEach(function(player) {
-          var marker = markers.find(function(marker) {
-            return marker.title === player.name;
-          });
-          if (marker !== undefined) {
-            marker.setPosition(player.position);
-          } else {
-            markers.push(new google.maps.Marker({
-              position: player.position,
-              map: map,
-              title: player.name
-            }));
-          }
-        });
-      });
     }
 
     function callback() {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(function(pos) {
+          var position = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude
+          };
           var mapParams = {
-            center: {
-              lat: pos.coords.latitude,
-              lng: pos.coords.longitude
-            },
+            center: position,
             zoom: 17
           };
           map = new google.maps.Map(document.getElementById("map"), mapParams);
+
+          playerMarker = new google.maps.Marker({
+            position: position,
+            map: map
+          });
 
           var interval = setInterval(updateGeolocation, 1000);
           $(window).focus(function() {
