@@ -72,26 +72,6 @@ var callback = function(req, res) {
 
     switch (requestData.pathname) {
 
-      case '/players': {
-        // Check client authorization.
-        var player = players.find(function(player) {
-          return player.authKey === requestData.query.authKey;
-        });
-        if (player === undefined) {
-          res.end(RESPONSES.UNAUTHORIZED);
-          return;
-        }
-
-        responseData.players = players.filter(function(player) {
-          return player.position !== null;
-        }).map(function(player) {
-          return {name: player.name, position: player.position};
-        });
-
-        res.end(JSON.stringify(responseData));
-        break;
-      }
-
       case '/index.html': case '/map.html': {
         var callback = function(err, data) {
           res.end(!err ? data : RESPONSES.SERVER_ERR);
