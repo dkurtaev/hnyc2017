@@ -285,6 +285,15 @@ var callback = function(req, res) {
             }
           }
 
+          fs.appendFile('geos.log', new Date() + '] ' + player.id + ' ' +
+                        playerData.position.lat + ' ' +
+                        playerData.position.lng + '\n',
+                        'utf8', (err) => {
+            if (err) {
+              log(err);
+            }
+          });
+
           res.end(RESPONSES.OK);
         } else {
           res.end(RESPONSES.UNAUTHORIZED);
