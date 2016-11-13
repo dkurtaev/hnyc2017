@@ -15,11 +15,13 @@ var PlayersDB = require('./players_db.js');
 //   lastPostTime:  // time of last POST query from this player.
 // }
 var players = [];
-var postTimeout = 5000;
-var activityTimeout = 60000;
+var POST_TIMEOUT = 5e+3;
+var ACTIVITY_TIMEOUT = 60e+3;
 var lastDropTime = new Date();
 var playersDB = new PlayersDB();
 var flags = [];
+var CAPTURE_RADIUS = 1e-7;  // Maximal squared distance for capturing flag.
+var FLAGS_TIMEOUT = 1800e+3;  // Time after which captured flags appears again.
 
 var RESPONSES = {
   OK:
@@ -47,21 +49,21 @@ var callback = function(req, res) {
 
   // Mark inactive players.
   players.forEach(function(player) {
-    if (player.position && now - player.lastPostTime > postTimeout) {
+    if (player.position && now - player.lastPostTime > POST_TIMEOUT) {
       player.position = null;
     }
   });
 
   // Drop players with long timeout.
-  if (now - lastDropTime > activityTimeout) {
+  if (now - lastDropTime > ACTIVITY_TIMEOUT) {
     var numReleasedPlayers = 0;
     players = players.filter(function(player) {
-      if (player.position || now - player.lastPostTime < activityTimeout) {
+      if (player.position || now - player.lastPostTime < ACTIVITY_TIMEOUT) {
         return true;
       } else {
         numReleasedPlayers += 1;
         log('Player offline: ' + player.name +
-            ' (' + (players.length - numReleasedPlayers) + ') total.');
+            ', (' + (players.length - numReleasedPlayers) + ') players total.');
         return false;
       }
     });
@@ -85,8 +87,13 @@ var callback = function(req, res) {
           return;
         }
 
-        responseData.flags = flags.map(function(elem) {
-          return {position: elem};
+        responseData.flags = flags.filter(function(flag) {
+          if (flag.captured && now - flag.captureTime >= FLAGS_TIMEOUT) {
+            flag.captured = false;
+          }
+          return !flag.captured;
+        }).map(function(flag) {
+          return {position: flag.position};
         });
 
         res.end(JSON.stringify(responseData));
@@ -166,13 +173,13 @@ var callback = function(req, res) {
               players.push(player);
               responseData.authKey = key;
               log('Player online: ' + player.name +
-                  ' (' + players.length + ') players total.');
+                  ', (' + players.length + ') players total.');
             } else {
               if (!player.position) {
                 player.authKey = key;
                 responseData.authKey = key;
                 log('Player online: ' + player.name +
-                    ' (' + players.length + ') players total.');
+                    ', (' + players.length + ') players total.');
               } else {
                 responseData.status = RESPONSES.UNAUTHORIZED.status;
                 responseData.error = 'Player already authorized.';
@@ -212,6 +219,23 @@ var callback = function(req, res) {
         if (player !== undefined) {
           player.position = playerData.position;
           player.lastPostTime = now;
+
+          // Capture the flags.
+          for (var i = 0, l = flags.length; i < l; ++i) {
+            if (flags[i].captured) {
+              continue;
+            }
+            var distance_sq =
+                Math.pow(player.position.lat - flags[i].position.lat, 2) +
+                Math.pow(player.position.lng - flags[i].position.lng, 2);
+            if (distance_sq <= CAPTURE_RADIUS) {
+              log('Player ' + player.name + ' captured flag ' + i);
+              flags[i].captured = true;
+              flags[i].captureTime = now;
+              break;
+            }
+          }
+
           res.end(RESPONSES.OK);
         } else {
           res.end(RESPONSES.UNAUTHORIZED);
@@ -227,7 +251,13 @@ var callback = function(req, res) {
 
 fs.readFile('markers.json', 'utf8', (err, data) => {
   if (!err) {
-    flags = JSON.parse(data);
+    flags = JSON.parse(data).map(function(position) {
+      return {
+        position: position,
+        captured: false,
+        captureTime: null
+      };
+    });
   } else {
     log(err);
   }
