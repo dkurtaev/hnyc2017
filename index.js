@@ -87,10 +87,13 @@ var callback = function(req, res) {
           return;
         }
 
+        var flagIdx = 0;
         responseData.flags = flags.filter(function(flag) {
           if (flag.captured && now - flag.captureTime >= FLAGS_TIMEOUT) {
             flag.captured = false;
+            log('Flag ' + flagIdx + ' appeared.');
           }
+          flagIdx += 1;
           return !flag.captured;
         }).map(function(flag) {
           return {position: flag.position};
@@ -158,18 +161,21 @@ var callback = function(req, res) {
           res.end(RESPONSES.BAD_REQUEST);
           break;
         }
-        playersDB.signIn(playerData.name, playerData.pass, function(err, key) {
+
+        var signInCallback = function(err, id, key, numFlags) {
           if (!err) {
             var player = players.find(function(player) {
               return player.name === playerData.name;
             });
             if (player === undefined) {
               player = {
+                id: id,
                 name: playerData.name,
                 authKey: key,
+                numFlags: numFlags,
                 position: null,
                 lastPostTime: null
-              }
+              };
               players.push(player);
               responseData.authKey = key;
               log('Player online: ' + player.name +
@@ -190,7 +196,9 @@ var callback = function(req, res) {
             responseData.error = err;
           }
           res.end(JSON.stringify(responseData));
-        });
+        };
+
+        playersDB.signIn(playerData.name, playerData.pass, signInCallback);
         break;
       }
 
@@ -230,8 +238,10 @@ var callback = function(req, res) {
                 Math.pow(player.position.lng - flags[i].position.lng, 2);
             if (distance_sq <= CAPTURE_RADIUS) {
               log('Player ' + player.name + ' captured flag ' + i);
+              player.numFlags += 1;
               flags[i].captured = true;
               flags[i].captureTime = now;
+              playersDB.updateNumFlags(player.id, player.numFlags);
               break;
             }
           }
