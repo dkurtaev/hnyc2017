@@ -87,7 +87,8 @@ var callback = function(req, res) {
     var requestData = url.parse(req.url, true);
 
     if (requestData.pathname == '/flags' ||
-        requestData.pathname == '/log') {
+        requestData.pathname == '/log' ||
+        requestData.pathname == '/players') {
       // Check client authorization.
       var player = players.find(function(player) {
         return player.authKey === requestData.query.authKey;
@@ -118,7 +119,18 @@ var callback = function(req, res) {
       }
 
       case '/log': {
-        responseData.log = '<pre>' + eventsLog.join('<br>') + '</pre>';
+        responseData.log = eventsLog.join('<br>');
+        res.end(JSON.stringify(responseData));
+        break;
+      }
+
+      case '/players': {
+        responseData.players = players.map(function(player) {
+          return {
+            name: player.name,
+            numFlags: player.numFlags
+          };
+        });
         res.end(JSON.stringify(responseData));
         break;
       }
