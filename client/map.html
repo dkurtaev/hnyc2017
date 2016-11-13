@@ -6,6 +6,10 @@
   <!-- jQuery -->
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
 
+  <!-- Bootstrap -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
   <!-- For russian symbols -->
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 
@@ -48,7 +52,8 @@
           dataType: 'json',  // Expected response type.
         }).done(function(response) {
           if (!response.error) {
-            updateMarkers();
+            updateFlags();
+            updateLog();
           } else {
             error('Ошибка: ' + response.error);
           }
@@ -58,22 +63,24 @@
       });
     }
 
-    function updateMarkers() {
-      var request = $.ajax({
+    function get(pathname, callback) {
+      $.ajax({
         type: 'GET',
-        url: host + '/flags?authKey=' + authKey,
+        url: host + '/' + pathname + '?authKey=' + authKey,
         dataType: 'json'  // Expected response type.
-      });
-
-      request.fail(function() {
+      }).fail(function() {
         error('Потеряно соединение с сервером.');
-      });
-
-      request.done(function(res) {
-        if (res.error) {
-          error('Ошибка: ' + res.error);
+      }).done(function(response) {
+        if (!response.error) {
+          callback(response)
+        } else {
+          error('Ошибка: ' + response.error);
         }
+      });
+    }
 
+    function updateFlags() {
+      get('flags', (res) => {
         var flags = res.flags;
 
         // Update flags markers.
@@ -81,6 +88,7 @@
         for (var i = 0; i < num; ++i) {
           flagsMarkers[i].setPosition(flags[i].position);
         }
+
         if (flagsMarkers.length < flags.length) {
           for (var i = flagsMarkers.length; i < flags.length; ++i) {
             flagsMarkers.push(new google.maps.Marker({
@@ -98,7 +106,13 @@
       });
     }
 
-    function callback() {
+    function updateLog() {
+      get('log', (res) => {
+        $("#log").html(res.log);
+      });
+    }
+
+    function init() {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(function(pos) {
           var position = {
@@ -134,7 +148,7 @@
       if (match) {
         authKey = match[1];
         $.getJSON(window.atob('aHR0cHM6Ly9tYXBzLmdvb2dsZWFwaXMuY29tL21hcHMvYXBpL2pzP2tleT1BSXphU3lDODlnWC1RRFpVc0ItWmoxLWRFN0E3VHJSckFKdUhNWGsmY2FsbGJhY2s9Pw=='),
-                  callback)
+                  init)
       } else {
         error('Unauthentificated request.');
       }
@@ -145,7 +159,10 @@
 
 <body>
 
-  <div id="map" style="width: 100%; height: 100%">
+  <div id="map" style="width: 100%; height: 80%">
+  </div>
+
+  <div id="log" class="well pre-scrollable" style="width: 100%; height: 20%">
   </div>
 
 </body>

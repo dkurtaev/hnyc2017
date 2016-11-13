@@ -22,6 +22,8 @@ var playersDB = new PlayersDB();
 var flags = [];
 var CAPTURE_RADIUS = 1e-7;  // Maximal squared distance for capturing flag.
 var FLAGS_TIMEOUT = 1800e+3;  // Time after which captured flags appears again.
+var eventsLog = [];
+var EVENTS_LOG_DEPTH = 10;
 
 var RESPONSES = {
   OK:
@@ -38,6 +40,13 @@ var RESPONSES = {
 
 function log(msg) {
   console.log(new Date() + '] ' + msg);
+}
+
+function logEvent(msg) {
+  eventsLog.unshift(msg);
+  while (eventsLog.length > EVENTS_LOG_DEPTH) {
+    eventsLog.pop();
+  }
 }
 
 var callback = function(req, res) {
@@ -64,6 +73,8 @@ var callback = function(req, res) {
         numReleasedPlayers += 1;
         log('Player offline: ' + player.name +
             ', (' + (players.length - numReleasedPlayers) + ') players total.');
+        logEvent('Player <b>' + player.name +
+                 '</b> is <span style="color: red">offline</span>');
         return false;
       }
     });
@@ -75,18 +86,21 @@ var callback = function(req, res) {
   if (req.method === 'GET') {
     var requestData = url.parse(req.url, true);
 
+    if (requestData.pathname == '/flags' ||
+        requestData.pathname == '/log') {
+      // Check client authorization.
+      var player = players.find(function(player) {
+        return player.authKey === requestData.query.authKey;
+      });
+      if (player === undefined) {
+        res.end(RESPONSES.UNAUTHORIZED);
+        return;
+      }
+    }
+
     switch (requestData.pathname) {
 
       case '/flags': {
-        // Check client authorization.
-        var player = players.find(function(player) {
-          return player.authKey === requestData.query.authKey;
-        });
-        if (player === undefined) {
-          res.end(RESPONSES.UNAUTHORIZED);
-          return;
-        }
-
         var flagIdx = 0;
         responseData.flags = flags.filter(function(flag) {
           if (flag.captured && now - flag.captureTime >= FLAGS_TIMEOUT) {
@@ -99,6 +113,12 @@ var callback = function(req, res) {
           return {position: flag.position};
         });
 
+        res.end(JSON.stringify(responseData));
+        break;
+      }
+
+      case '/log': {
+        responseData.log = '<pre>' + eventsLog.join('<br>') + '</pre>';
         res.end(JSON.stringify(responseData));
         break;
       }
@@ -180,12 +200,12 @@ var callback = function(req, res) {
               responseData.authKey = key;
               log('Player online: ' + player.name +
                   ', (' + players.length + ') players total.');
+              logEvent('Player <b>' + player.name +
+                       '</b> is <span style="color: green">online</span>');
             } else {
               if (!player.position) {
                 player.authKey = key;
                 responseData.authKey = key;
-                log('Player online: ' + player.name +
-                    ', (' + players.length + ') players total.');
               } else {
                 responseData.status = RESPONSES.UNAUTHORIZED.status;
                 responseData.error = 'Player already authorized.';
@@ -242,6 +262,7 @@ var callback = function(req, res) {
               flags[i].captured = true;
               flags[i].captureTime = now;
               playersDB.updateNumFlags(player.id, player.numFlags);
+              logEvent('Player <b>' + player.name + '</b> captured flag!');
               break;
             }
           }
