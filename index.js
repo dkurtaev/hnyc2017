@@ -19,6 +19,7 @@ var postTimeout = 5000;
 var activityTimeout = 60000;
 var lastDropTime = new Date();
 var playersDB = new PlayersDB();
+var flags = [];
 
 var RESPONSES = {
   OK:
@@ -53,12 +54,14 @@ var callback = function(req, res) {
 
   // Drop players with long timeout.
   if (now - lastDropTime > activityTimeout) {
+    var numReleasedPlayers = 0;
     players = players.filter(function(player) {
       if (player.position || now - player.lastPostTime < activityTimeout) {
         return true;
       } else {
+        numReleasedPlayers += 1;
         log('Player offline: ' + player.name +
-            ' (' + (players.length - 1) + ') total.');
+            ' (' + (players.length - numReleasedPlayers) + ') total.');
         return false;
       }
     });
@@ -82,9 +85,9 @@ var callback = function(req, res) {
           return;
         }
 
-        responseData.flags = [
-          {position: {lat: 56.286, lng: 43.941}}
-        ];
+        responseData.flags = flags.map(function(elem) {
+          return {position: elem};
+        });
 
         res.end(JSON.stringify(responseData));
         break;
@@ -221,6 +224,14 @@ var callback = function(req, res) {
     }
   });
 };
+
+fs.readFile('markers.json', 'utf8', (err, data) => {
+  if (!err) {
+    flags = JSON.parse(data);
+  } else {
+    log(err);
+  }
+});
 
 var options = {
   key: fs.readFileSync('key.pem'),
