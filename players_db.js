@@ -53,19 +53,29 @@ PlayersDB.prototype.signUp = function(name, pass, callback) {
 };
 
 PlayersDB.prototype.signIn = function(name, pass, callback) {
-  var query = 'SELECT id FROM players WHERE ' +
+  var query = 'SELECT id, numFlags FROM players WHERE ' +
               'name = "' + name + '" and ' +
               'pass = MD5("' + pass + '");';
   this.connection.query(query, function(err, rows) {
-    if (err) {
+    if (!err) {
+      if (rows.length != 0) {
+        callback(null, rows[0].id, btoa(obfuscate(name)), rows[0].numFlags);
+      } else {
+        callback('Incorrect name or password.');
+      }
+    } else {
       log(err);
       callback('Server side problem.');
-      return;
     }
-    if (rows.length != 0) {
-      callback(null, btoa(obfuscate(name)));
-    } else {
-      callback('Incorrect name or password.');
+  });
+};
+
+PlayersDB.prototype.updateNumFlags = function(playerId, numFlags, callback) {
+  var query = 'UPDATE players SET numFlags = ' + numFlags +
+              ' WHERE id = ' + playerId + ';';
+  this.connection.query(query, (err) => {
+    if (err) {
+      log(err);
     }
   });
 };

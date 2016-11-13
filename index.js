@@ -15,10 +15,13 @@ var PlayersDB = require('./players_db.js');
 //   lastPostTime:  // time of last POST query from this player.
 // }
 var players = [];
-var postTimeout = 5000;
-var activityTimeout = 60000;
+var POST_TIMEOUT = 5e+3;
+var ACTIVITY_TIMEOUT = 60e+3;
 var lastDropTime = new Date();
 var playersDB = new PlayersDB();
+var flags = [];
+var CAPTURE_RADIUS = 1e-7;  // Maximal squared distance for capturing flag.
+var FLAGS_TIMEOUT = 1800e+3;  // Time after which captured flags appears again.
 
 var RESPONSES = {
   OK:
@@ -46,19 +49,21 @@ var callback = function(req, res) {
 
   // Mark inactive players.
   players.forEach(function(player) {
-    if (player.position && now - player.lastPostTime > postTimeout) {
+    if (player.position && now - player.lastPostTime > POST_TIMEOUT) {
       player.position = null;
     }
   });
 
   // Drop players with long timeout.
-  if (now - lastDropTime > activityTimeout) {
+  if (now - lastDropTime > ACTIVITY_TIMEOUT) {
+    var numReleasedPlayers = 0;
     players = players.filter(function(player) {
-      if (player.position || now - player.lastPostTime < activityTimeout) {
+      if (player.position || now - player.lastPostTime < ACTIVITY_TIMEOUT) {
         return true;
       } else {
+        numReleasedPlayers += 1;
         log('Player offline: ' + player.name +
-            ' (' + (players.length - 1) + ') total.');
+            ', (' + (players.length - numReleasedPlayers) + ') players total.');
         return false;
       }
     });
@@ -71,6 +76,32 @@ var callback = function(req, res) {
     var requestData = url.parse(req.url, true);
 
     switch (requestData.pathname) {
+
+      case '/flags': {
+        // Check client authorization.
+        var player = players.find(function(player) {
+          return player.authKey === requestData.query.authKey;
+        });
+        if (player === undefined) {
+          res.end(RESPONSES.UNAUTHORIZED);
+          return;
+        }
+
+        var flagIdx = 0;
+        responseData.flags = flags.filter(function(flag) {
+          if (flag.captured && now - flag.captureTime >= FLAGS_TIMEOUT) {
+            flag.captured = false;
+            log('Flag ' + flagIdx + ' appeared.');
+          }
+          flagIdx += 1;
+          return !flag.captured;
+        }).map(function(flag) {
+          return {position: flag.position};
+        });
+
+        res.end(JSON.stringify(responseData));
+        break;
+      }
 
       case '/index.html': case '/map.html': {
         var callback = function(err, data) {
@@ -130,28 +161,31 @@ var callback = function(req, res) {
           res.end(RESPONSES.BAD_REQUEST);
           break;
         }
-        playersDB.signIn(playerData.name, playerData.pass, function(err, key) {
+
+        var signInCallback = function(err, id, key, numFlags) {
           if (!err) {
             var player = players.find(function(player) {
               return player.name === playerData.name;
             });
             if (player === undefined) {
               player = {
+                id: id,
                 name: playerData.name,
                 authKey: key,
+                numFlags: numFlags,
                 position: null,
                 lastPostTime: null
-              }
+              };
               players.push(player);
               responseData.authKey = key;
               log('Player online: ' + player.name +
-                  ' (' + players.length + ') players total.');
+                  ', (' + players.length + ') players total.');
             } else {
               if (!player.position) {
                 player.authKey = key;
                 responseData.authKey = key;
                 log('Player online: ' + player.name +
-                    ' (' + players.length + ') players total.');
+                    ', (' + players.length + ') players total.');
               } else {
                 responseData.status = RESPONSES.UNAUTHORIZED.status;
                 responseData.error = 'Player already authorized.';
@@ -162,7 +196,9 @@ var callback = function(req, res) {
             responseData.error = err;
           }
           res.end(JSON.stringify(responseData));
-        });
+        };
+
+        playersDB.signIn(playerData.name, playerData.pass, signInCallback);
         break;
       }
 
@@ -191,6 +227,25 @@ var callback = function(req, res) {
         if (player !== undefined) {
           player.position = playerData.position;
           player.lastPostTime = now;
+
+          // Capture the flags.
+          for (var i = 0, l = flags.length; i < l; ++i) {
+            if (flags[i].captured) {
+              continue;
+            }
+            var distance_sq =
+                Math.pow(player.position.lat - flags[i].position.lat, 2) +
+                Math.pow(player.position.lng - flags[i].position.lng, 2);
+            if (distance_sq <= CAPTURE_RADIUS) {
+              log('Player ' + player.name + ' captured flag ' + i);
+              player.numFlags += 1;
+              flags[i].captured = true;
+              flags[i].captureTime = now;
+              playersDB.updateNumFlags(player.id, player.numFlags);
+              break;
+            }
+          }
+
           res.end(RESPONSES.OK);
         } else {
           res.end(RESPONSES.UNAUTHORIZED);
@@ -203,6 +258,20 @@ var callback = function(req, res) {
     }
   });
 };
+
+fs.readFile('markers.json', 'utf8', (err, data) => {
+  if (!err) {
+    flags = JSON.parse(data).map(function(position) {
+      return {
+        position: position,
+        captured: false,
+        captureTime: null
+      };
+    });
+  } else {
+    log(err);
+  }
+});
 
 var options = {
   key: fs.readFileSync('key.pem'),
