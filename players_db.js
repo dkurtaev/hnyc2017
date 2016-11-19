@@ -3,6 +3,9 @@ var btoa = require('btoa');
 
 module.exports = PlayersDB;
 
+var numFlagsByCommands = [0, 0, 0];
+var numPlayersInCommands = [0, 0, 0];
+
 function log(msg) {
   console.log(new Date() + '] ' + msg);
 }
@@ -39,15 +42,40 @@ PlayersDB.prototype.signUp = function(name, pass, callback) {
       callback('Player with the same name already exists.');
       return;
     }
-    query = 'INSERT INTO players (id, name, pass) VALUES ' +
-            '(NULL, "' + name + '", MD5("' + pass + '"));';
+
+    // Choose command.
+    var commandId = 0;
+    if (numFlagsByCommands[0] != numFlagsByCommands[1]) {
+      if (numFlagsByCommands[1] < numFlagsByCommands[0]) {
+        commandId = 1;
+      }
+    } else {
+      if (numPlayersInCommands[1] < numPlayersInCommands[0]) {
+        commandId = 1;
+      }
+    }
+    if (numFlagsByCommands[commandId] != numFlagsByCommands[2]) {
+      if (numFlagsByCommands[2] < numFlagsByCommands[commandId]) {
+        commandId = 2;
+      }
+    } else {
+      if (numPlayersInCommands[2] < numPlayersInCommands[commandId]) {
+        commandId = 2;
+      }
+    }
+
+    // Insert new record into database.
+    query = 'INSERT INTO players (id, name, pass, commandId) VALUES ' +
+            '(NULL, "' + name + '", MD5("' + pass + '"), ' + commandId + ');';
     self.connection.query(query, function(err, res) {
       if (!err) {
         var newPlayer = {
           id: res.insertId,
           name: name,
-          numFlags: 0
+          numFlags: 0,
+          commandId: commandId
         };
+        numPlayersInCommands[commandId] += 1;
         callback(null, newPlayer);
       } else {
         log(err);
@@ -75,11 +103,13 @@ PlayersDB.prototype.signIn = function(name, pass, callback) {
   });
 };
 
-PlayersDB.prototype.updateNumFlags = function(playerId, numFlags) {
-  var query = 'UPDATE players SET numFlags = ' + numFlags +
-              ' WHERE id = ' + playerId + ';';
+PlayersDB.prototype.incrementNumFlags = function(playerId, commandId) {
+  var query = 'UPDATE players SET numFlags = numFlags + 1 ' +
+              'WHERE id = ' + playerId + ';';
   this.connection.query(query, (err) => {
-    if (err) {
+    if (!err) {
+      numFlagsByCommands[commandId] += 1;
+    } else {
       log(err);
     }
   });
@@ -90,10 +120,13 @@ PlayersDB.prototype.getAllPlayers = function(callback) {
   this.connection.query(query, (err, rows) => {
     if (!err) {
       callback(null, rows.map(function(row) {
+        numFlagsByCommands[row.commandId] += row.numFlags;
+        numPlayersInCommands[row.commandId] += 1;
         return {
           id: row.id,
           name: row.name,
-          numFlags: row.numFlags
+          numFlags: row.numFlags,
+          commandId: row.commandId
         };
       }));
     } else {

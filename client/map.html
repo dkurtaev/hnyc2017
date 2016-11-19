@@ -25,17 +25,9 @@
       height: 100%;
     }
 
-    .red-circle {
-      width: 10px;
-      height: 10px;
-      background: red;
-      border-radius: 50%;
-    }
-
-    .green-circle {
-      width: 10px;
-      height: 10px;
-      background: green;
+    .circle {
+      width: 12px;
+      height: 12px;
       border-radius: 50%;
     }
 
@@ -151,16 +143,18 @@
         });
 
         var getHtmls = function(players, isOnline) {
-          var indicator = (isOnline ? 'green-circle' : 'red-circle');
+          var isOnlineColor = (isOnline ? 'green' : 'red');
           var fontColor = (isOnline ? 'black' : 'gray');
           return players.map(function(player) {
+            var commandIconSrc = 'https://hnyc2017.ddns.net:56582/icon_' +
+                (player.commandId == 0 ? 'blue.png' :
+                (player.commandId == 1 ? 'purple.png' : 'gold.png'));
             return '<span style="float: left">' +
-                     '<img class="' + indicator + '"> ' +
+                     '<img class="circle" style="background:' + isOnlineColor + '"> ' +
                      '<span style="color:' + fontColor + '">' + player.name + '</span>' +
                    '</span>' +
                    '<span style="float: right">' +
-                     '<img src="https://maps.google.com/mapfiles/kml/pal2/icon4.png" ' +
-                          'style="width: 14px"> ' +
+                     '<img src="' + commandIconSrc + '" style="width: 14px"> ' +
                      '<span>' + player.numFlags + '</span>' +
                    '</span>';
           });
@@ -181,7 +175,9 @@
           };
           var mapParams = {
             center: position,
-            zoom: 17
+            zoom: 17,
+            disableDefaultUI: true,
+            zoomControl: true
           };
           map = new google.maps.Map(document.getElementById("map"), mapParams);
 
