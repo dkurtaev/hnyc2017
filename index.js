@@ -56,6 +56,24 @@ function logEvent(msg) {
 }
 
 var callback = function(req, res) {
+  var player = null;
+  var requestData = url.parse(req.url, true);
+
+  if (requestData.pathname == '/flags' ||
+      requestData.pathname == '/log' ||
+      requestData.pathname == '/players' ||
+      requestData.pathname == '/flag_comment' ||
+      requestData.pathname == '/geolocation') {
+    // Check client authorization.
+    player = playersOnline.find(function(player) {
+      return player.authKey === requestData.query.authKey;
+    });
+    if (player === undefined) {
+      res.end(RESPONSES.UNAUTHORIZED);
+      return;
+    }
+  }
+
   var now = new Date();
   var responseData = {
     status: 200,  // Ok.
@@ -103,21 +121,6 @@ var callback = function(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
 
   if (req.method === 'GET') {
-    var requestData = url.parse(req.url, true);
-
-    if (requestData.pathname == '/flags' ||
-        requestData.pathname == '/log' ||
-        requestData.pathname == '/players') {
-      // Check client authorization.
-      var player = playersOnline.find(function(player) {
-        return player.authKey === requestData.query.authKey;
-      });
-      if (player === undefined) {
-        res.end(RESPONSES.UNAUTHORIZED);
-        return;
-      }
-    }
-
     switch (requestData.pathname) {
 
       case '/flags': {
@@ -184,7 +187,7 @@ var callback = function(req, res) {
       return;
     }
 
-    switch (req.url) {
+    switch (requestData.pathname) {
 
       case '/sign_up': {
         // POST data:
@@ -274,54 +277,69 @@ var callback = function(req, res) {
         //   }
         // }
         var playerData = JSON.parse(data);
-        if (!playerData.hasOwnProperty('authKey') ||
-            !playerData.hasOwnProperty('position') ||
+        if (!playerData.hasOwnProperty('position') ||
             !playerData.position.hasOwnProperty('lat') ||
             !playerData.position.hasOwnProperty('lng')) {
           res.end(RESPONSES.BAD_REQUEST);
           break;
         }
 
-        var player = playersOnline.find(function(player) {
-          return player.authKey === playerData.authKey;
+        player.isActive = true;
+        player.lastPostTime = now;
+
+        // Capture the flags.
+        for (var i = 0, l = flags.length; i < l; ++i) {
+          if (flags[i].captured) {
+            continue;
+          }
+          var distance_sq =
+              Math.pow(playerData.position.lat - flags[i].position.lat, 2) +
+              Math.pow(playerData.position.lng - flags[i].position.lng, 2);
+          if (distance_sq <= CAPTURE_RADIUS) {
+            log('Player ' + player.name + ' captured flag ' + i);
+            player.numFlags += 1;
+            flags[i].captured = true;
+            flags[i].captureTime = now;
+            playersDB.incrementNumFlags(player.id, player.commandId);
+            logEvent('Player <b>' + player.name + '</b> captured flag!');
+            responseData.flagCaptured = true;
+            responseData.capturedFlagId = i;
+            break;
+          }
+        }
+
+        fs.appendFile('geos.log', new Date() + '] ' + player.id + ' ' +
+                      playerData.position.lat + ' ' +
+                      playerData.position.lng + '\n',
+                      'utf8', (err) => {
+          if (err) {
+            log(err);
+          }
         });
 
-        if (player !== undefined) {
-          player.isActive = true;
-          player.lastPostTime = now;
+        res.end(JSON.stringify(responseData));
+      }
 
-          // Capture the flags.
-          for (var i = 0, l = flags.length; i < l; ++i) {
-            if (flags[i].captured) {
-              continue;
-            }
-            var distance_sq =
-                Math.pow(playerData.position.lat - flags[i].position.lat, 2) +
-                Math.pow(playerData.position.lng - flags[i].position.lng, 2);
-            if (distance_sq <= CAPTURE_RADIUS) {
-              log('Player ' + player.name + ' captured flag ' + i);
-              player.numFlags += 1;
-              flags[i].captured = true;
-              flags[i].captureTime = now;
-              playersDB.incrementNumFlags(player.id, player.commandId);
-              logEvent('Player <b>' + player.name + '</b> captured flag!');
-              break;
-            }
-          }
-
-          fs.appendFile('geos.log', new Date() + '] ' + player.id + ' ' +
-                        playerData.position.lat + ' ' +
-                        playerData.position.lng + '\n',
-                        'utf8', (err) => {
-            if (err) {
-              log(err);
-            }
-          });
-
-          res.end(RESPONSES.OK);
-        } else {
-          res.end(RESPONSES.UNAUTHORIZED);
+      case '/flag_comment': {
+        var playerData = JSON.parse(data);
+        if (!playerData.hasOwnProperty('position') ||
+            !playerData.position.hasOwnProperty('lat') ||
+            !playerData.position.hasOwnProperty('lng') ||
+            !playerData.hasOwnProperty('msg') ||
+            !playerData.hasOwnProperty('flagId')) {
+          res.end(RESPONSES.BAD_REQUEST);
+          break;
         }
+
+        var flagId = playerData.flagId;
+        var distance_sq =
+            Math.pow(playerData.position.lat - flags[flagId].position.lat, 2) +
+            Math.pow(playerData.position.lng - flags[flagId].position.lng, 2);
+        if (distance_sq <= CAPTURE_RADIUS) {
+          console.log(playerData.msg);
+        }
+
+        res.end(RESPONSES.OK);
       }
 
       default:

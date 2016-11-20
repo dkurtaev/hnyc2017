@@ -52,6 +52,19 @@
       window.location = 'index.html';
     }
 
+    function sendFlagComment(msg, playerPosition, flagId) {
+      $.ajax({
+        type: 'POST',
+        url: host + '/flag_comment' + '?authKey=' + authKey,
+        data: JSON.stringify({
+          position: playerPosition,
+          msg: msg,
+          flagId: flagId
+        })
+      }).done(function(res) {
+      }).fail(function(err) {});
+    }
+
     function updateGeolocation() {
       navigator.geolocation.getCurrentPosition(function(pos) {
         var position = {
@@ -61,21 +74,30 @@
         playerMarker.setPosition(position);
 
         // Post player's location to server.
-        var playerData = {
-          authKey: authKey,
-          position: position
-        };
-
         $.ajax({
           type: 'POST',
-          url: host + '/geolocation',
-          data: JSON.stringify(playerData),
+          url: host + '/geolocation' + '?authKey=' + authKey,
+          data: JSON.stringify({
+            position: position
+          }),
           dataType: 'json',  // Expected response type.
         }).done(function(response) {
           if (!response.error) {
             updateFlags();
             updateLog();
             updatePlayers();
+            if (response.flagCaptured) {
+              var comment = null;
+              do {
+                comment = prompt('Флаг захвачен! Вы можете оставить запись, ' +
+                                 'которая будет видна другим игрокам:');
+                if (comment && comment.length > 140) {
+                  comment = null;
+                  window.alert('Длина не должна превышать 140 символов.')
+                }
+              } while (!comment);
+              sendFlagComment(comment, position, response.capturedFlagId);
+            }
           } else {
             error('Ошибка: ' + response.error);
           }
