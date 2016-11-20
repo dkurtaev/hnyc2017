@@ -52,6 +52,19 @@
       window.location = 'index.html';
     }
 
+    function sendFlagComment(msg, playerPosition, flagId) {
+      $.ajax({
+        type: 'POST',
+        url: host + '/flag_comment' + '?authKey=' + authKey,
+        data: JSON.stringify({
+          position: playerPosition,
+          msg: msg,
+          flagId: flagId
+        })
+      }).done(function(res) {
+      }).fail(function(err) {});
+    }
+
     function updateGeolocation() {
       navigator.geolocation.getCurrentPosition(function(pos) {
         var position = {
@@ -61,21 +74,31 @@
         playerMarker.setPosition(position);
 
         // Post player's location to server.
-        var playerData = {
-          authKey: authKey,
-          position: position
-        };
-
         $.ajax({
           type: 'POST',
-          url: host + '/geolocation',
-          data: JSON.stringify(playerData),
+          url: host + '/geolocation' + '?authKey=' + authKey,
+          data: JSON.stringify({
+            position: position
+          }),
           dataType: 'json',  // Expected response type.
         }).done(function(response) {
           if (!response.error) {
             updateFlags();
             updateLog();
             updatePlayers();
+            if (response.flagCaptured) {
+              var comment = null;
+              do {
+                comment = prompt('Флаг захвачен! Вы можете оставить запись, ' +
+                                 'которая будет видна другим игрокам:');
+                if (comment && comment.length > 140) {
+                  window.alert('Длина не должна превышать 140 символов.')
+                }
+              } while (comment && comment.length > 140);
+              if (comment) {
+                sendFlagComment(comment, position, response.capturedFlagId);
+              }
+            }
           } else {
             error('Ошибка: ' + response.error);
           }
@@ -107,6 +130,7 @@
         var flags = res.flags;
         for (var i = 0, l = flagsMarkers.length; i < l; ++i) {
           flagsMarkers[i].timeToAppearing = flags[i].timeToAppearing;
+          flagsMarkers[i].messages = JSON.parse(flags[i].messages);
 
           if (flagsMarkers[i].captured && !flags[i].captured) {
             flagsMarkers[i].setIcon(host + '/icon_green.png');
@@ -141,13 +165,15 @@
             var commandIconSrc = host + '/icon_' +
                 (player.commandId == 0 ? 'blue.png' :
                 (player.commandId == 1 ? 'purple.png' : 'gold.png'));
+            var numFlags = (player.numFlags < 10 ? '00' :
+                            player.numFlags < 100 ? '0' : '') + player.numFlags;
             return '<span style="float: left">' +
                      '<img class="circle" style="background:' + isOnlineColor + '"> ' +
                      '<span style="color:' + fontColor + '">' + player.name + '</span>' +
                    '</span>' +
                    '<span style="float: right">' +
                      '<img src="' + commandIconSrc + '" style="width: 14px"> ' +
-                     '<span>' + player.numFlags + '</span>' +
+                     '<span>' + numFlags + '</span>' +
                    '</span>';
           });
         };
@@ -178,7 +204,9 @@
             map: map
           });
 
-          infoWindow = new google.maps.InfoWindow({});
+          infoWindow = new google.maps.InfoWindow({
+            maxWidth: 200
+          });
 
           // Initialize flags.
           get('flags', (res) => {
@@ -192,11 +220,21 @@
               });
               marker.captured = flag.captured;
               marker.timeToAppearing = flag.timeToAppearing;
+              marker.messages = JSON.parse(flag.messages);
 
               marker.addListener('click', function() {
+                var content = '';
                 if (marker.captured) {
-                  infoWindow.setContent('Время до появления: ' +
-                      Math.ceil(marker.timeToAppearing / 60e+3) + ' мин.');
+                  content += 'Время до появления: ' +
+                      Math.ceil(marker.timeToAppearing / 60e+3) + ' мин.';
+                  if (marker.messages.length != 0) {
+                    content += '<br><br>';
+                  }
+                }
+                content += marker.messages.join('<br>');
+
+                if (content !== '') {
+                  infoWindow.setContent('<p>' + content + '</p>');
                   infoWindow.open(map, marker);
                 }
               });
