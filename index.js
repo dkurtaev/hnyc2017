@@ -130,6 +130,7 @@ var callback = function(req, res) {
           return {
             position: flag.position,
             captured: flag.captured,
+            messages: JSON.stringify(flag.messages),
             timeToAppearing: FLAGS_TIMEOUT - (now - flag.captureTime)
           };
         });
@@ -339,7 +340,8 @@ var callback = function(req, res) {
             Math.pow(playerData.position.lat - flags[flagId].position.lat, 2) +
             Math.pow(playerData.position.lng - flags[flagId].position.lng, 2);
         if (distance_sq <= CAPTURE_RADIUS) {
-          flags[flagId].messages.push(player.name + ': ' + playerData.msg);
+          var msg = '<b>' + player.name + '</b>: ' + playerData.msg;
+          flags[flagId].messages.push(msg);
           flagsDB.updateMessages(flags[flagId]);
         }
 
