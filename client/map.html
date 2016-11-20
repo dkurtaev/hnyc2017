@@ -45,6 +45,7 @@
     var playerMarker = null;
     var flagsMarkers = [];
     var host = window.atob('aHR0cHM6Ly9obnljMjAxNy5kZG5zLm5ldDo1NjU4Mg==');
+    var infoWindow = null;
 
     function error(msg) {
       window.alert(msg);
@@ -100,29 +101,20 @@
       });
     }
 
+    // Number and positions of flags are same but captured state changes.
     function updateFlags() {
       get('flags', (res) => {
         var flags = res.flags;
+        for (var i = 0, l = flagsMarkers.length; i < l; ++i) {
+          flagsMarkers[i].timeToAppearing = flags[i].timeToAppearing;
 
-        // Update flags markers.
-        var num = Math.min(flagsMarkers.length, flags.length);
-        for (var i = 0; i < num; ++i) {
-          flagsMarkers[i].setPosition(flags[i].position);
-        }
-
-        if (flagsMarkers.length < flags.length) {
-          for (var i = flagsMarkers.length; i < flags.length; ++i) {
-            flagsMarkers.push(new google.maps.Marker({
-              position: flags[i].position,
-              map: map,
-              icon: 'https://maps.google.com/mapfiles/kml/pal2/icon4.png'
-            }));
+          if (flagsMarkers[i].captured && !flags[i].captured) {
+            flagsMarkers[i].setIcon(host + '/icon_green.png');
+            flagsMarkers[i].captured = false;
+          } else if (!flagsMarkers[i].captured && flags[i].captured) {
+            flagsMarkers[i].setIcon(host + '/icon_gray.png');
+            flagsMarkers[i].captured = true;
           }
-        } else if (flagsMarkers.length > flags.length) {
-          for (var i = flags.length; i < flagsMarkers.length; ++i) {
-            flagsMarkers[i].setMap(null);
-          }
-          flagsMarkers = flagsMarkers.slice(0, flags.length);
         }
       });
     }
@@ -146,7 +138,7 @@
           var isOnlineColor = (isOnline ? 'green' : 'red');
           var fontColor = (isOnline ? 'black' : 'gray');
           return players.map(function(player) {
-            var commandIconSrc = 'https://hnyc2017.ddns.net:56582/icon_' +
+            var commandIconSrc = host + '/icon_' +
                 (player.commandId == 0 ? 'blue.png' :
                 (player.commandId == 1 ? 'purple.png' : 'gold.png'));
             return '<span style="float: left">' +
@@ -186,12 +178,39 @@
             map: map
           });
 
-          var interval = setInterval(updateGeolocation, 1000);
-          $(window).focus(function() {
-            interval = setInterval(updateGeolocation, 1000);
-          });
-          $(window).blur(function() {
-            clearInterval(interval);
+          infoWindow = new google.maps.InfoWindow({});
+
+          // Initialize flags.
+          get('flags', (res) => {
+            var flags = res.flags;
+            flagsMarkers = res.flags.map(function(flag) {
+              var icon = host + '/icon_' + (flag.captured ? 'gray.png' : 'green.png');
+              var marker = new google.maps.Marker({
+                  position: flag.position,
+                  map: map,
+                  icon: icon
+              });
+              marker.captured = flag.captured;
+              marker.timeToAppearing = flag.timeToAppearing;
+
+              marker.addListener('click', function() {
+                if (marker.captured) {
+                  infoWindow.setContent('Время до появления: ' +
+                      Math.ceil(marker.timeToAppearing / 60e+3) + ' мин.');
+                  infoWindow.open(map, marker);
+                }
+              });
+
+              return marker;
+            });
+
+            var interval = setInterval(updateGeolocation, 1000);
+            $(window).focus(function() {
+              interval = setInterval(updateGeolocation, 1000);
+            });
+            $(window).blur(function() {
+              clearInterval(interval);
+            });
           });
         });
       } else {
