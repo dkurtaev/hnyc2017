@@ -76,8 +76,8 @@ var callback = function(req, res) {
         player.isOnline = false;
         numReleasedPlayers += 1;
         log('Player offline: ' + player.name +
-            ', (' + (playersOnline.length - numReleasedPlayers) +
-            ') players total.');
+            ', ' + (playersOnline.length - numReleasedPlayers) +
+            ' players total.');
         logEvent('Player <b>' + player.name +
                  '</b> is <span style="color: red">offline</span>');
         return false;
@@ -129,12 +129,21 @@ var callback = function(req, res) {
         break;
       }
 
+      case '/icon_purple.png': case '/icon_gold.png': case '/icon_blue.png': {
+        fs.readFile('images' + requestData.pathname, (err, data) => {
+          res.writeHead(200, {'Content-Type': 'image/png'});
+          res.end(data);
+        });
+        break;
+      }
+
       case '/players': {
         responseData.players = allPlayers.map(function(player) {
           return {
             name: player.name,
             numFlags: player.numFlags,
-            isOnline: player.isOnline
+            isOnline: player.isOnline,
+            commandId: player.commandId
           };
         });
         res.end(JSON.stringify(responseData));
@@ -177,7 +186,8 @@ var callback = function(req, res) {
         }
         playersDB.signUp(playerData.name, playerData.pass, (err, newPlayer) => {
           if (!err) {
-            log('New player: ' + newPlayer.name);
+            log('New player: ' + newPlayer.name +
+                ' in command ' + newPlayer.commandId);
             newPlayer.authKey = null;
             newPlayer.isOnline = false;
             newPlayer.isActive = false;
@@ -217,7 +227,7 @@ var callback = function(req, res) {
               playersOnline.push(player);
               responseData.authKey = authKey;
               log('Player online: ' + player.name +
-                  ', (' + playersOnline.length + ') players total.');
+                  ', ' + playersOnline.length + ' players total.');
               logEvent('Player <b>' + player.name +
                        '</b> is <span style="color: green">online</span>');
             } else {
@@ -279,7 +289,7 @@ var callback = function(req, res) {
               player.numFlags += 1;
               flags[i].captured = true;
               flags[i].captureTime = now;
-              playersDB.updateNumFlags(player.id, player.numFlags);
+              playersDB.incrementNumFlags(player.id, player.commandId);
               logEvent('Player <b>' + player.name + '</b> captured flag!');
               break;
             }
@@ -331,7 +341,8 @@ playersDB.getAllPlayers((err, players) => {
         authKey: null,
         isOnline: false,
         isActive: false,
-        lastPostTime: null
+        lastPostTime: null,
+        commandId: player.commandId
       };
     });
 
