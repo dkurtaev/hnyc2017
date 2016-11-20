@@ -121,7 +121,13 @@ var callback = function(req, res) {
     switch (requestData.pathname) {
 
       case '/flags': {
-        responseData.flags = flags;
+        responseData.flags = flags.map(function(flag) {
+          return {
+            position: flag.position,
+            captured: flag.captured,
+            timeToAppearing: FLAGS_TIMEOUT - (now - flag.captureTime)
+          };
+        });
         res.end(JSON.stringify(responseData));
         break;
       }

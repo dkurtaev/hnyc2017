@@ -45,6 +45,7 @@
     var playerMarker = null;
     var flagsMarkers = [];
     var host = window.atob('aHR0cHM6Ly9obnljMjAxNy5kZG5zLm5ldDo1NjU4Mg==');
+    var infoWindow = null;
 
     function error(msg) {
       window.alert(msg);
@@ -105,6 +106,8 @@
       get('flags', (res) => {
         var flags = res.flags;
         for (var i = 0, l = flagsMarkers.length; i < l; ++i) {
+          flagsMarkers[i].timeToAppearing = flags[i].timeToAppearing;
+
           if (flagsMarkers[i].captured && !flags[i].captured) {
             flagsMarkers[i].setIcon(host + '/icon_green.png');
             flagsMarkers[i].captured = false;
@@ -175,6 +178,8 @@
             map: map
           });
 
+          infoWindow = new google.maps.InfoWindow({});
+
           // Initialize flags.
           get('flags', (res) => {
             var flags = res.flags;
@@ -186,6 +191,16 @@
                   icon: icon
               });
               marker.captured = flag.captured;
+              marker.timeToAppearing = flag.timeToAppearing;
+
+              marker.addListener('click', function() {
+                if (marker.captured) {
+                  infoWindow.setContent('Время до появления: ' +
+                      Math.ceil(marker.timeToAppearing / 60e+3) + ' мин.');
+                  infoWindow.open(map, marker);
+                }
+              });
+
               return marker;
             });
 
