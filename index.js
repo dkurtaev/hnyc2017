@@ -3,6 +3,7 @@ var url = require('url');
 var https = require('https');
 var atob = require('atob');
 var PlayersDB = require('./players_db.js');
+var FlagsDB = require('./flags_db.js');
 
 // Each player has properties:
 // {
@@ -26,6 +27,7 @@ var CAPTURE_RADIUS = 1e-7;  // Maximal squared distance for capturing flag.
 var FLAGS_TIMEOUT = 1800e+3;  // Time after which captured flags appears again.
 var eventsLog = [];
 var EVENTS_LOG_DEPTH = 10;
+var flagsDB = new FlagsDB();
 
 // Update is procedure with dropping inactive players and appearing flags.
 var lastUpdateTime = new Date();
@@ -318,6 +320,7 @@ var callback = function(req, res) {
         });
 
         res.end(JSON.stringify(responseData));
+        break;
       }
 
       case '/flag_comment': {
@@ -336,10 +339,12 @@ var callback = function(req, res) {
             Math.pow(playerData.position.lat - flags[flagId].position.lat, 2) +
             Math.pow(playerData.position.lng - flags[flagId].position.lng, 2);
         if (distance_sq <= CAPTURE_RADIUS) {
-          console.log(playerData.msg);
+          flags[flagId].messages.push(player.name + ': ' + playerData.msg);
+          flagsDB.updateMessages(flags[flagId]);
         }
 
         res.end(RESPONSES.OK);
+        break;
       }
 
       default:
@@ -349,40 +354,50 @@ var callback = function(req, res) {
   });
 };
 
-fs.readFile('markers.json', 'utf8', (err, data) => {
-  if (!err) {
-    flags = JSON.parse(data).map(function(position) {
-      return {
-        position: position,
-        captured: false,
-        captureTime: null
-      };
-    });
-  } else {
-    log(err);
-  }
-});
+function startServer() {
+  var options = {
+    key: fs.readFileSync('key.pem'),
+    cert: fs.readFileSync('cert.pem')
+  };
+  var server = https.createServer(options, callback);
+  server.listen(56582);
+}
 
-playersDB.getAllPlayers((err, players) => {
-  if (!err) {
-    allPlayers = players.map(function(player) {
-      return {
-        id: player.id,
-        name: player.name,
-        numFlags: player.numFlags,
-        authKey: null,
-        isOnline: false,
-        isActive: false,
-        lastPostTime: null,
-        commandId: player.commandId
-      };
-    });
+function loadPlayers() {
+  playersDB.getAllPlayers((err, players) => {
+    if (!err) {
+      allPlayers = players.map(function(player) {
+        return {
+          id: player.id,
+          name: player.name,
+          numFlags: player.numFlags,
+          authKey: null,
+          isOnline: false,
+          isActive: false,
+          lastPostTime: null,
+          commandId: player.commandId
+        };
+      });
+      startServer();
+    }
+  });
+}
 
-    var options = {
-      key: fs.readFileSync('key.pem'),
-      cert: fs.readFileSync('cert.pem')
-    };
-    var server = https.createServer(options, callback);
-    server.listen(56582);
-  }
-});
+function loadFlags() {
+  flagsDB.getAllFlags((err, allFlags) => {
+    if (!err) {
+      flags = allFlags.map(function(flag) {
+        return {
+          id: flag.id,
+          position: flag.position,
+          messages: flag.messages,
+          captured: false,
+          captureTime: null
+        };
+      });
+      loadPlayers();
+    }
+  });
+}
+
+loadFlags();
