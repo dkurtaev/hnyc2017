@@ -19,14 +19,17 @@ var PlayersDB = require('./players_db.js');
 var allPlayers = [];
 var playersOnline = [];
 var POST_TIMEOUT = 5e+3;
-var ACTIVITY_TIMEOUT = 60e+3;
-var lastDropTime = new Date();
+var ACTIVITY_TIMEOUT = 300e+3;
 var playersDB = new PlayersDB();
 var flags = [];
 var CAPTURE_RADIUS = 1e-7;  // Maximal squared distance for capturing flag.
 var FLAGS_TIMEOUT = 1800e+3;  // Time after which captured flags appears again.
 var eventsLog = [];
 var EVENTS_LOG_DEPTH = 10;
+
+// Update is procedure with dropping inactive players and appearing flags.
+var lastUpdateTime = new Date();
+var UPDATE_PERIOD = 60e+3;
 
 var RESPONSES = {
   OK:
@@ -66,8 +69,9 @@ var callback = function(req, res) {
     }
   });
 
-  // Drop players with long timeout.
-  if (now - lastDropTime > ACTIVITY_TIMEOUT) {
+  // Updates.
+  if (now - lastUpdateTime > UPDATE_PERIOD) {
+    // Release players.
     var numReleasedPlayers = 0;
     playersOnline = playersOnline.filter(function(player) {
       if (player.isActive || now - player.lastPostTime < ACTIVITY_TIMEOUT) {
@@ -83,7 +87,17 @@ var callback = function(req, res) {
         return false;
       }
     });
-    lastDropTime = now;
+
+    // Flags appearing.
+    for (var i = 0, l = flags.length; i < l; ++i) {
+      var flag = flags[i];
+      if (flag.captured && now - flag.captureTime >= FLAGS_TIMEOUT) {
+        flag.captured = false;
+        log('Flag ' + i + ' appeared.');
+      }
+    }
+
+    lastUpdateTime = now;
   }
 
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -107,18 +121,7 @@ var callback = function(req, res) {
     switch (requestData.pathname) {
 
       case '/flags': {
-        var flagIdx = 0;
-        responseData.flags = flags.filter(function(flag) {
-          if (flag.captured && now - flag.captureTime >= FLAGS_TIMEOUT) {
-            flag.captured = false;
-            log('Flag ' + flagIdx + ' appeared.');
-          }
-          flagIdx += 1;
-          return !flag.captured;
-        }).map(function(flag) {
-          return {position: flag.position};
-        });
-
+        responseData.flags = flags;
         res.end(JSON.stringify(responseData));
         break;
       }
@@ -129,10 +132,15 @@ var callback = function(req, res) {
         break;
       }
 
-      case '/icon_purple.png': case '/icon_gold.png': case '/icon_blue.png': {
+      case '/icon_purple.png': case '/icon_gold.png': case '/icon_blue.png':
+      case '/icon_gray.png': case '/icon_green.png': {
         fs.readFile('images' + requestData.pathname, (err, data) => {
-          res.writeHead(200, {'Content-Type': 'image/png'});
-          res.end(data);
+          if (!err) {
+            res.writeHead(200, {'Content-Type': 'image/png'});
+            res.end(data);
+          } else {
+            res.end(RESPONSES.SERVER_ERR);
+          }
         });
         break;
       }
