@@ -1,5 +1,6 @@
 function Tree(gl) {
-  this.NUM_SLICES = 6;  // Should be >= 3.
+  this.NUM_SLICES = 10;  // Should be >= 3.
+  this.NUM_LEVELS = 6;
 
   this.initVBOs(gl);
   this.initShaders(gl);
@@ -7,27 +8,45 @@ function Tree(gl) {
 }
 
 Tree.prototype.initVBOs = function(gl) {
-  TOP = { x: 0.0, y: 1.0, z: 0.0 };
   ZENITH = -Math.PI / 4;
-  RADIUS = 1.0;
+  RADIUS = 2.0;
   var cosZenith = Math.cos(ZENITH);
   var sinZenith = Math.sin(ZENITH);
+  var levelHeight = RADIUS * Math.sin(-ZENITH);
+  var top = { x: 0.0, y: levelHeight, z: 0.0 };
 
-  var positions = [TOP.x, TOP.y, TOP.z];
-  var normals = [0, 1, 0];
-  var azimuth = 0.0;
-  var step = 2.0 * Math.PI / this.NUM_SLICES;
-  for (var i = 0; i <= this.NUM_SLICES; ++i) {
-    var sinAzimuth = Math.sin(azimuth);
-    var cosAzimuth = Math.cos(azimuth);
-    positions.push(TOP.x + RADIUS * sinAzimuth * cosZenith);
-    positions.push(TOP.y + RADIUS * sinZenith);
-    positions.push(TOP.z + RADIUS * cosAzimuth * cosZenith);
+  var positions = [];
+  var normals = [];
 
-    normals.push(sinAzimuth * sinZenith);
-    normals.push(cosZenith);
-    normals.push(cosAzimuth * sinZenith);
+  var azimuth = 0;
+  var step = 2 * Math.PI / this.NUM_SLICES;
+  var sinAzimuth = [];
+  var cosAzimuth = [];
+  for (var i = 0; i < this.NUM_SLICES; ++i) {
+    sinAzimuth.push(Math.sin(azimuth));
+    cosAzimuth.push(Math.cos(azimuth));
     azimuth += step;
+  }
+
+  for (var l = 0; l < this.NUM_LEVELS; ++l) {
+    for (var i = 0; i < this.NUM_SLICES; ++i) {
+      positions.push(top.x, top.y, top.z);
+      positions.push(top.x + RADIUS * sinAzimuth[i] * cosZenith,
+                     top.y + RADIUS * sinZenith,
+                     top.z + RADIUS * cosAzimuth[i] * cosZenith);
+      var next = (i != this.NUM_SLICES - 1 ? i + 1 : 0);
+      positions.push(top.x + RADIUS * sinAzimuth[next] * cosZenith,
+                     top.y + RADIUS * sinZenith,
+                     top.z + RADIUS * cosAzimuth[next] * cosZenith);
+      for (var j = 0; j < 3; ++j) {
+        normals.push(sinAzimuth[i] * sinZenith,
+                     cosZenith,
+                     cosAzimuth[i] * sinZenith);
+      }
+    }
+    RADIUS = RADIUS * 0.86;
+    levelHeight = RADIUS * Math.sin(-ZENITH);
+    top.y += levelHeight * 0.5;
   }
 
   this.positionsVBO = gl.createBuffer();
@@ -47,17 +66,14 @@ Tree.prototype.initShaders = function(gl) {
       'attribute vec3 a_normal;' +
       'uniform mat4 u_view_mtx;' +
       'uniform mat4 u_proj_mtx;' +
-      'varying vec3 v_position;' +
       'varying vec3 v_normal;' +
       'void main() {' +
-        'v_position = a_position;' +
         'v_normal = a_normal;' +
         'gl_Position = u_proj_mtx * u_view_mtx * vec4(a_position, 1.0);' +
       '}';
   var fragShaderSrc =
       'precision mediump float;' +
       'uniform vec3 u_light_vector;' +
-      'varying vec3 v_position;' +
       'varying vec3 v_normal;' +
       'void main() {' +
         'vec3 n_light_vector = normalize(u_light_vector);' +
@@ -71,7 +87,7 @@ Tree.prototype.initShaders = function(gl) {
 
 Tree.prototype.draw = function(gl) {
   var projMatrix = perspectiveProjMatrix(500, 500);
-  var viewMatrix = lookAtMatrix(Math.PI / 4, Math.PI / 4, 3);
+  var viewMatrix = lookAtMatrix(9, Math.PI / 6, 8);
 
   gl.useProgram(this.shaderProgram);
 
@@ -90,7 +106,7 @@ Tree.prototype.draw = function(gl) {
   gl.uniformMatrix4fv(locProjMtx, false, projMatrix);
   gl.uniform3fv(locLightVec, [-1, -1, -1]);
 
-  gl.drawArrays(gl.TRIANGLE_FAN, 0, this.NUM_SLICES + 2);
+  gl.drawArrays(gl.TRIANGLES, 0, this.NUM_LEVELS * this.NUM_SLICES * 3);
 
   // Disable all enabled.
   gl.bindBuffer(gl.ARRAY_BUFFER, null);
@@ -107,14 +123,14 @@ function lookAtMatrix(eyeAzimuth, eyeZenith, eyeRadius) {
   var sinAzimuth = Math.sin(eyeAzimuth);
   var zAxis = {
     x: sinAzimuth * cosZenith,
-    y: -sinZenith,
+    y: sinZenith,
     z: cosAzimuth * cosZenith
   };
   var xAxis = { x: zAxis.z / cosZenith, y: 0, z: -zAxis.x / cosZenith };
   var yAxis = {
-    x: sinAzimuth * sinZenith,
+    x: -sinAzimuth * sinZenith,
     y: cosZenith,
-    z: cosAzimuth * sinZenith
+    z: -cosAzimuth * sinZenith
   };
 
   // View matrix an inverse matrix to
