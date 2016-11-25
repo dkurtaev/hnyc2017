@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+  <!-- jQuery -->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+
+
+  <script src='tree.js'></script>
+  <script src='shaders_factory.js'></script>
+
+  <script>
+    $(document).ready(function() {
+      var canvas = document.getElementById('glCanvas');
+      canvas.width = 500;
+      canvas.height = 500;
+
+      var gl = null;
+      if (window.WebGLRenderingContext) {
+        gl = canvas.getContext('webgl', {antialias: false});
+      }
+      if (!gl) {
+        alert('WebGL initialization failed');
+      }
+
+      gl.clearColor(0.76, 0.69, 0.47, 1.0);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+      var tree = new Tree(gl);
+    });
+  </script>
+</head>
+
+<body>
+  <canvas id="glCanvas"></canvas>
+</body>
+
+</html>
