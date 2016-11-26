@@ -40,6 +40,8 @@ Twinkles.prototype.initShaders = function(gl) {
 
       'uniform mat4 u_view_mtx;' +
       'uniform mat4 u_proj_mtx;' +
+      'uniform mat4 u_ortho_mtx;' +
+
       'uniform float u_radius;' +
 
       'varying vec3 v_position;' +
@@ -73,7 +75,7 @@ Twinkles.prototype.initShaders = function(gl) {
         'model_matrix[3] = vec4(0.0, 0.0, 0.0, 1.0);' +
         'model_matrix = transpose(model_matrix);' +
         'model_matrix[3] = vec4(a_center, 1.0);' +
-        'gl_Position = u_proj_mtx * u_view_mtx * model_matrix * ' +
+        'gl_Position = u_ortho_mtx * u_proj_mtx * u_view_mtx * model_matrix *' +
         '              vec4(v_position, 1.0);' +
       '}';
   var fragShaderSrc =
@@ -113,11 +115,12 @@ Twinkles.prototype.initShaders = function(gl) {
   this.shaderProgram = createShaderProgram(gl, vertShaderSrc, fragShaderSrc);
 };
 
-Twinkles.prototype.draw = function(gl, projMatrix, viewMatrix) {
+Twinkles.prototype.draw = function(gl, projMatrix, viewMatrix, orthoMatrix) {
   gl.useProgram(this.shaderProgram);
 
   var locViewMtx = gl.getUniformLocation(this.shaderProgram, "u_view_mtx");
   var locProjMtx = gl.getUniformLocation(this.shaderProgram, "u_proj_mtx");
+  var locOrthoMtx = gl.getUniformLocation(this.shaderProgram, "u_ortho_mtx");
   var locRadius = gl.getUniformLocation(this.shaderProgram, "u_radius");
   var locIndices = gl.getAttribLocation(this.shaderProgram, "a_index");
   var locCenters = gl.getAttribLocation(this.shaderProgram, "a_center");
@@ -132,6 +135,7 @@ Twinkles.prototype.draw = function(gl, projMatrix, viewMatrix) {
 
   gl.uniformMatrix4fv(locViewMtx, false, viewMatrix);
   gl.uniformMatrix4fv(locProjMtx, false, projMatrix);
+  gl.uniformMatrix4fv(locOrthoMtx, false, orthoMatrix);
   gl.uniform1f(locRadius, this.radius);
 
   gl.drawArrays(gl.TRIANGLES, 0, this.numTwinkles * 6);
