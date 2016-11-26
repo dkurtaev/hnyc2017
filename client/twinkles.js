@@ -1,39 +1,45 @@
-function Twinkles(gl, radius) {
+function Twinkles(gl, radius, twinkles) {
+  // Each twinkle is a circle. Circle drawing on square. There are two
+  // triangles in square:
+  // 0 *------* 1
+  //   |    / |
+  //   | /    |
+  // 3 *------* 2
   this.radius = radius;
-  this.initVBOs(gl);
-  this.initShaders(gl);
-}
+  var centers = [];
+  var indices = [];
+  twinkles.forEach(function(position) {
+    for (var i = 0; i < 6; ++i) {
+      centers.push(position[0], position[1], position[2]);
+    }
+    indices.push(0, 1, 3, 3, 1, 2);
+  });
 
-Twinkles.prototype.initVBOs = function(gl) {
-  var positions = [-this.radius, this.radius, 0,
-                   this.radius, this.radius, 0,
-                   -this.radius, -this.radius, 0,
-                   -this.radius, -this.radius, 0,
-                   this.radius, this.radius, 0,
-                   this.radius, -this.radius, 0];
-  var centers = [
-    0, 4, 0, 0, 4, 0, 0, 4, 0,
-    0, 4, 0, 0, 4, 0, 0, 4, 0
-  ];
-
-  this.positionsVBO = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, this.positionsVBO);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+  // Initialize VBOs.
+  this.indicesVBO = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, this.indicesVBO);
+  gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(indices), gl.STATIC_DRAW);
 
   this.centersVBO = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, this.centersVBO);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(centers), gl.STATIC_DRAW);
 
   gl.bindBuffer(gl.ARRAY_BUFFER, null);
-};
+
+  // Initialize shader program.
+  this.initShaders(gl);
+}
 
 Twinkles.prototype.initShaders = function(gl) {
   var vertShaderSrc =
-      'attribute vec3 a_position;' +
+      'precision mediump float;' +
+
+      'attribute float a_index;' +
       'attribute vec3 a_center;' +
 
       'uniform mat4 u_view_mtx;' +
       'uniform mat4 u_proj_mtx;' +
+      'uniform float u_radius;' +
 
       'varying vec3 v_position;' +
 
@@ -48,12 +54,24 @@ Twinkles.prototype.initShaders = function(gl) {
         '            vec4(col1[3], col2[3], col3[3], col4[3]));' +
       '}' +
 
+      'vec3 GetPositionByIdx(float idx) {' +
+        'if (idx == 0.0) {' +
+          'return vec3(-u_radius, u_radius, 0.0);' +
+        '} else if (idx == 1.0) {' +
+          'return vec3(u_radius, u_radius, 0.0);' +
+        '} else if (idx == 2.0) {' +
+          'return vec3(u_radius, -u_radius, 0.0);' +
+        '} else {' +
+          'return vec3(-u_radius, -u_radius, 0.0);' +
+        '}' +
+      '}' +
+
       'void main() {' +
-        'v_position = a_position;' +
+        'v_position = GetPositionByIdx(a_index);' +
         'mat4 model_matrix = transpose(u_view_mtx);' +
         'model_matrix[3] = vec4(a_center, 1.0);' +
         'gl_Position = u_proj_mtx * u_view_mtx * model_matrix * ' +
-        '              vec4(a_position, 1.0);' +
+        '              vec4(v_position, 1.0);' +
       '}';
   var fragShaderSrc =
       'precision mediump float;' +
@@ -62,9 +80,9 @@ Twinkles.prototype.initShaders = function(gl) {
       'void main() {' +
         'float d = length(v_position);' +
         'if (d <= u_radius) {' +
-          'gl_FragColor = vec4(1.0, 1.0 - d / u_radius, 1.0 - d / u_radius, 1.0);' +
+          'gl_FragColor = vec4(1.0, 1.0 - d / u_radius, 1.0 - d / u_radius, 1.0 - d / u_radius);' +
         '} else {' +
-          'gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);' +
+          'gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);' +
         '}' +
       '}';
   this.shaderProgram = createShaderProgram(gl, vertShaderSrc, fragShaderSrc);
@@ -72,13 +90,13 @@ Twinkles.prototype.initShaders = function(gl) {
 
 Twinkles.prototype.draw = function(gl) {
   var projMatrix = perspectiveProjMatrix(500, 500);
-  var viewMatrix = lookAtMatrix(0, Math.PI/2.5, 10);
+  var viewMatrix = lookAtMatrix(0, Math.PI / 3, 8);
 
   gl.useProgram(this.shaderProgram);
 
-  gl.bindBuffer(gl.ARRAY_BUFFER, this.positionsVBO);
-  gl.vertexAttribPointer(Attrib.POSITION, 3, gl.FLOAT, false, 0, 0);
-  gl.enableVertexAttribArray(Attrib.POSITION);
+  gl.bindBuffer(gl.ARRAY_BUFFER, this.indicesVBO);
+  gl.vertexAttribPointer(Attrib.INDEX, 1, gl.UNSIGNED_BYTE, false, 0, 0);
+  gl.enableVertexAttribArray(Attrib.INDEX);
 
   gl.bindBuffer(gl.ARRAY_BUFFER, this.centersVBO);
   gl.vertexAttribPointer(Attrib.CENTER, 3, gl.FLOAT, false, 0, 0);

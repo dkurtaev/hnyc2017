@@ -4,9 +4,9 @@ function Tree(gl) {
 
   this.initVBOs(gl);
   this.initShaders(gl);
-  this.twinles = new Twinkles(gl, 1);
-  this.twinles.draw(gl);
+  this.twinkles = new Twinkles(gl, 1, [[0, 4, 0]]);
   this.draw(gl);
+  this.twinkles.draw(gl);
 }
 
 Tree.prototype.initVBOs = function(gl) {
@@ -89,7 +89,7 @@ Tree.prototype.initShaders = function(gl) {
 
 Tree.prototype.draw = function(gl) {
   var projMatrix = perspectiveProjMatrix(500, 500);
-  var viewMatrix = lookAtMatrix(0, Math.PI/2.5, 10);
+  var viewMatrix = lookAtMatrix(0, Math.PI / 3, 8);
 
   gl.useProgram(this.shaderProgram);
 
