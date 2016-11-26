@@ -4,6 +4,8 @@ function Tree(gl) {
 
   this.initVBOs(gl);
   this.initShaders(gl);
+  this.twinles = new Twinkles(gl, 1);
+  this.twinles.draw(gl);
   this.draw(gl);
 }
 
@@ -87,7 +89,7 @@ Tree.prototype.initShaders = function(gl) {
 
 Tree.prototype.draw = function(gl) {
   var projMatrix = perspectiveProjMatrix(500, 500);
-  var viewMatrix = lookAtMatrix(9, Math.PI / 6, 8);
+  var viewMatrix = lookAtMatrix(0, Math.PI/2.5, 10);
 
   gl.useProgram(this.shaderProgram);
 
@@ -126,7 +128,7 @@ function lookAtMatrix(eyeAzimuth, eyeZenith, eyeRadius) {
     y: sinZenith,
     z: cosAzimuth * cosZenith
   };
-  var xAxis = { x: zAxis.z / cosZenith, y: 0, z: -zAxis.x / cosZenith };
+  var xAxis = { x: cosAzimuth, y: 0, z: -sinAzimuth };
   var yAxis = {
     x: -sinAzimuth * sinZenith,
     y: cosZenith,
