@@ -6,6 +6,7 @@ function Twinkles(gl, radius, twinkles) {
   //   | /    |
   // 3 *------* 2
   this.radius = radius;
+  this.numTwinkles = twinkles.length;
   var centers = [];
   var indices = [];
   twinkles.forEach(function(position) {
@@ -68,52 +69,76 @@ Twinkles.prototype.initShaders = function(gl) {
 
       'void main() {' +
         'v_position = GetPositionByIdx(a_index);' +
-        'mat4 model_matrix = transpose(u_view_mtx);' +
+        'mat4 model_matrix = u_view_mtx;' +
+        'model_matrix[3] = vec4(0.0, 0.0, 0.0, 1.0);' +
+        'model_matrix = transpose(model_matrix);' +
         'model_matrix[3] = vec4(a_center, 1.0);' +
         'gl_Position = u_proj_mtx * u_view_mtx * model_matrix * ' +
         '              vec4(v_position, 1.0);' +
       '}';
   var fragShaderSrc =
       'precision mediump float;' +
+
       'uniform float u_radius;' +
+
       'varying vec3 v_position;' +
+
       'void main() {' +
         'float d = length(v_position);' +
+
         'if (d <= u_radius) {' +
-          'gl_FragColor = vec4(1.0, 1.0 - d / u_radius, 1.0 - d / u_radius, 1.0 - d / u_radius);' +
+          '// L vector is (0.0, 0.0, 1.0).\n' +
+          '// V vector is (0.0, 0.0, 1.0).\n' +
+          'vec4 ambient = vec4(1.0, 1.0, 1.0, 1.0);' +
+          'vec4 diffuse = vec4(0.0, 0.0, 1.0, 1.0);' +
+          'vec3 L = vec3(0.0, 0.0, 1.0);' +
+
+          '// Ambient\n' +
+          'gl_FragColor = 0.27 * ambient;' +
+
+          '// Diffuse\n' +
+          'float z = sqrt(u_radius * u_radius - d * d);' +
+          'gl_FragColor += 0.9 * z / u_radius * diffuse;' +
+
+          '// Specular\n' +
+          'vec3 normal = vec3(v_position.x, v_position.y, z) / u_radius;' +
+          'vec3 R = normalize(2.0 * normal.z * normal - L);' +
+          'gl_FragColor += 0.55 * pow(max(0.0, R.z), 0.99);' +
+
+          'gl_FragColor.a = 1.0;' +
         '} else {' +
-          'gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);' +
+          'discard;' +
         '}' +
       '}';
   this.shaderProgram = createShaderProgram(gl, vertShaderSrc, fragShaderSrc);
 };
 
-Twinkles.prototype.draw = function(gl) {
-  var projMatrix = perspectiveProjMatrix(500, 500);
-  var viewMatrix = lookAtMatrix(0, Math.PI / 3, 8);
-
+Twinkles.prototype.draw = function(gl, projMatrix, viewMatrix) {
   gl.useProgram(this.shaderProgram);
-
-  gl.bindBuffer(gl.ARRAY_BUFFER, this.indicesVBO);
-  gl.vertexAttribPointer(Attrib.INDEX, 1, gl.UNSIGNED_BYTE, false, 0, 0);
-  gl.enableVertexAttribArray(Attrib.INDEX);
-
-  gl.bindBuffer(gl.ARRAY_BUFFER, this.centersVBO);
-  gl.vertexAttribPointer(Attrib.CENTER, 3, gl.FLOAT, false, 0, 0);
-  gl.enableVertexAttribArray(Attrib.CENTER);
 
   var locViewMtx = gl.getUniformLocation(this.shaderProgram, "u_view_mtx");
   var locProjMtx = gl.getUniformLocation(this.shaderProgram, "u_proj_mtx");
   var locRadius = gl.getUniformLocation(this.shaderProgram, "u_radius");
+  var locIndices = gl.getAttribLocation(this.shaderProgram, "a_index");
+  var locCenters = gl.getAttribLocation(this.shaderProgram, "a_center");
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, this.indicesVBO);
+  gl.vertexAttribPointer(locIndices, 1, gl.UNSIGNED_BYTE, false, 0, 0);
+  gl.enableVertexAttribArray(locIndices);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, this.centersVBO);
+  gl.vertexAttribPointer(locCenters, 3, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(locCenters);
+
   gl.uniformMatrix4fv(locViewMtx, false, viewMatrix);
   gl.uniformMatrix4fv(locProjMtx, false, projMatrix);
   gl.uniform1f(locRadius, this.radius);
 
-  gl.drawArrays(gl.TRIANGLES, 0, 6);
+  gl.drawArrays(gl.TRIANGLES, 0, this.numTwinkles * 6);
 
   // Disable all enabled.
   gl.bindBuffer(gl.ARRAY_BUFFER, null);
-  gl.disableVertexAttribArray(Attrib.POSITION);
-  gl.disableVertexAttribArray(Attrib.CENTER);
+  gl.disableVertexAttribArray(locIndices);
+  gl.disableVertexAttribArray(locCenters);
   gl.useProgram(null);
 };

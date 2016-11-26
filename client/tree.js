@@ -4,9 +4,7 @@ function Tree(gl) {
 
   this.initVBOs(gl);
   this.initShaders(gl);
-  this.twinkles = new Twinkles(gl, 1, [[0, 4, 0]]);
   this.draw(gl);
-  this.twinkles.draw(gl);
 }
 
 Tree.prototype.initVBOs = function(gl) {
@@ -29,6 +27,10 @@ Tree.prototype.initVBOs = function(gl) {
     cosAzimuth.push(Math.cos(azimuth));
     azimuth += step;
   }
+  var sinHalfStep = Math.sin(0.5 * step);
+  var cosHalfStep = Math.cos(0.5 * step);
+
+  var twinkles = [];
 
   for (var l = 0; l < this.NUM_LEVELS; ++l) {
     for (var i = 0; i < this.NUM_SLICES; ++i) {
@@ -40,16 +42,27 @@ Tree.prototype.initVBOs = function(gl) {
       positions.push(top.x + RADIUS * sinAzimuth[next] * cosZenith,
                      top.y + RADIUS * sinZenith,
                      top.z + RADIUS * cosAzimuth[next] * cosZenith);
+
+      var sinNormal = cosAzimuth[i] * sinHalfStep + sinAzimuth[i] * cosHalfStep;
+      var cosNormal = cosAzimuth[i] * cosHalfStep - sinAzimuth[i] * sinHalfStep;
       for (var j = 0; j < 3; ++j) {
-        normals.push(sinAzimuth[i] * sinZenith,
+        normals.push(-sinNormal * sinZenith,
                      cosZenith,
-                     cosAzimuth[i] * sinZenith);
+                     -cosNormal * sinZenith);
       }
+
+      twinkles.push([
+        -0.15 * sinNormal * sinZenith + 0.33 * (3 * top.x + RADIUS * sinAzimuth[i] * cosZenith + RADIUS * sinAzimuth[next] * cosZenith),
+        0.15 * cosZenith + 0.33 * (3 * top.y + 2 * RADIUS * sinZenith),
+        -0.15 * cosNormal * sinZenith + 0.33 * (3 * top.z + RADIUS * cosAzimuth[i] * cosZenith + RADIUS * cosAzimuth[next] * cosZenith)]);
     }
     RADIUS = RADIUS * 0.86;
     levelHeight = RADIUS * Math.sin(-ZENITH);
     top.y += levelHeight * 0.5;
   }
+
+  this.twinkles = new Twinkles(gl, 0.1, twinkles);
+
 
   this.positionsVBO = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, this.positionsVBO);
@@ -89,7 +102,7 @@ Tree.prototype.initShaders = function(gl) {
 
 Tree.prototype.draw = function(gl) {
   var projMatrix = perspectiveProjMatrix(500, 500);
-  var viewMatrix = lookAtMatrix(0, Math.PI / 3, 8);
+  var viewMatrix = lookAtMatrix(0, Math.PI / 4, 8);
 
   gl.useProgram(this.shaderProgram);
 
@@ -115,6 +128,8 @@ Tree.prototype.draw = function(gl) {
   gl.disableVertexAttribArray(Attrib.POSITION);
   gl.disableVertexAttribArray(Attrib.NORMAL);
   gl.useProgram(null);
+
+  this.twinkles.draw(gl, projMatrix, viewMatrix);
 };
 
 

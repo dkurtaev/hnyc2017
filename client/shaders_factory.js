@@ -1,8 +1,6 @@
 var Attrib = {
   POSITION: 0,
-  NORMAL: 1,
-  CENTER: 2,
-  INDEX: 3
+  NORMAL: 1
 };
 
 function createShaderProgram(gl, vertShaderSource, fragShaderSource) {
@@ -16,8 +14,6 @@ function createShaderProgram(gl, vertShaderSource, fragShaderSource) {
 
   gl.bindAttribLocation(shaderProgram, Attrib.POSITION, "a_position");
   gl.bindAttribLocation(shaderProgram, Attrib.NORMAL, "a_normal");
-  gl.bindAttribLocation(shaderProgram, Attrib.CENTER, "a_center");
-  gl.bindAttribLocation(shaderProgram, Attrib.INDEX, "a_index");
 
   gl.linkProgram(shaderProgram);
   gl.deleteShader(vertexShader);
