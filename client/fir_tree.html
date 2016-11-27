@@ -12,12 +12,25 @@
   <script src='twinkles.js'></script>
 
   <script>
+    var gl = null;
+    var tree = null;
+    var eyeAzimuth = 0.0;
+    var eyeAzimuthInc = 0.01;
+
+    function display() {
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      tree.draw(gl, eyeAzimuth, 500, 500);
+      eyeAzimuth += eyeAzimuthInc;
+      if (eyeAzimuth >= 2 * Math.PI) {
+        eyeAzimuth = 0.0;
+      }
+    }
+
     $(document).ready(function() {
       var canvas = document.getElementById('glCanvas');
       canvas.width = 500;
       canvas.height = 500;
 
-      var gl = null;
       if (window.WebGLRenderingContext) {
         gl = canvas.getContext('webgl');
       }
@@ -29,9 +42,17 @@
       gl.enable(gl.DEPTH_TEST);
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-      var tree = new Tree(gl);
+      tree = new Tree(gl);
+
+      var interval = setInterval(display, 30);
+      $(window).focus(function() {
+        interval = setInterval(display, 30);
+      });
+      $(window).blur(function() {
+        clearInterval(interval);
+      });
+
     });
   </script>
 </head>

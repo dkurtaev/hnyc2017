@@ -1,7 +1,6 @@
 function Tree(gl) {
   this.initVBOs(gl);
   this.initShaders(gl);
-  this.draw(gl);
 }
 
 Tree.prototype.initVBOs = function(gl) {
@@ -170,9 +169,9 @@ Tree.prototype.initShaders = function(gl) {
   this.shaderProgram = createShaderProgram(gl, vertShaderSrc, fragShaderSrc);
 };
 
-Tree.prototype.draw = function(gl) {
-  var projMatrix = perspectiveProjMatrix(500, 500);
-  var viewMatrix = lookAtMatrix(0, Math.PI / 4, 2.1);
+Tree.prototype.draw = function(gl, eyeAzimuth, viewWidth, viewHeight) {
+  var projMatrix = perspectiveProjMatrix(viewWidth, viewHeight);
+  var viewMatrix = lookAtMatrix(eyeAzimuth, Math.PI / 4, 2.1);
   var orthoMatrix = getOrthoMatrix(-0.6, 0.6, -0.4, 0.85);
 
   gl.useProgram(this.shaderProgram);
