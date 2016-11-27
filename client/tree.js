@@ -1,6 +1,5 @@
 function Tree(gl) {
-  this.NUM_SLICES = 10;  // Should be >= 3.
-  this.NUM_LEVELS = 6;
+  this.NUM_SLICES = 20;  // Should be >= 3.
 
   this.initVBOs(gl);
   this.initShaders(gl);
@@ -8,12 +7,12 @@ function Tree(gl) {
 }
 
 Tree.prototype.initVBOs = function(gl) {
-  ZENITH = -Math.PI / 4;
-  RADIUS = 2.0;
+  ZENITH = -Math.PI / 2.5;
+  RADIUS = 1.0;
+  var TOP = 1.0;
+
   var cosZenith = Math.cos(ZENITH);
   var sinZenith = Math.sin(ZENITH);
-  var levelHeight = RADIUS * Math.sin(-ZENITH);
-  var top = { x: 0.0, y: levelHeight, z: 0.0 };
 
   var positions = [];
   var normals = [];
@@ -27,27 +26,36 @@ Tree.prototype.initVBOs = function(gl) {
     cosAzimuth.push(Math.cos(azimuth));
     azimuth += step;
   }
+  var sinHalfStep = Math.sin(0.5 * step);
+  var cosHalfStep = Math.cos(0.5 * step);
 
-  for (var l = 0; l < this.NUM_LEVELS; ++l) {
-    for (var i = 0; i < this.NUM_SLICES; ++i) {
-      positions.push(top.x, top.y, top.z);
-      positions.push(top.x + RADIUS * sinAzimuth[i] * cosZenith,
-                     top.y + RADIUS * sinZenith,
-                     top.z + RADIUS * cosAzimuth[i] * cosZenith);
-      var next = (i != this.NUM_SLICES - 1 ? i + 1 : 0);
-      positions.push(top.x + RADIUS * sinAzimuth[next] * cosZenith,
-                     top.y + RADIUS * sinZenith,
-                     top.z + RADIUS * cosAzimuth[next] * cosZenith);
-      for (var j = 0; j < 3; ++j) {
-        normals.push(sinAzimuth[i] * sinZenith,
-                     cosZenith,
-                     cosAzimuth[i] * sinZenith);
-      }
+  var r = 0.02;
+  var twinkles = [];
+  for (var i = 0; i < this.NUM_SLICES; ++i) {
+    positions.push(0, TOP, 0);
+    positions.push(RADIUS * sinAzimuth[i] * cosZenith,
+                   TOP + RADIUS * sinZenith,
+                   RADIUS * cosAzimuth[i] * cosZenith);
+    var next = (i != this.NUM_SLICES - 1 ? i + 1 : 0);
+    positions.push(RADIUS * sinAzimuth[next] * cosZenith,
+                   TOP + RADIUS * sinZenith,
+                   RADIUS * cosAzimuth[next] * cosZenith);
+
+    var sinNormal = cosAzimuth[i] * sinHalfStep + sinAzimuth[i] * cosHalfStep;
+    var cosNormal = cosAzimuth[i] * cosHalfStep - sinAzimuth[i] * sinHalfStep;
+    for (var j = 0; j < 3; ++j) {
+      normals.push(-sinNormal * sinZenith,
+                   cosZenith,
+                   -cosNormal * sinZenith);
     }
-    RADIUS = RADIUS * 0.86;
-    levelHeight = RADIUS * Math.sin(-ZENITH);
-    top.y += levelHeight * 0.5;
+
+    twinkles.push([
+      -r * sinNormal * sinZenith + 0.33 * (RADIUS * sinAzimuth[i] * cosZenith + RADIUS * sinAzimuth[next] * cosZenith),
+      r * cosZenith + 0.33 * (3 * TOP + 2 * RADIUS * sinZenith),
+      -r * cosNormal * sinZenith + 0.33 * (RADIUS * cosAzimuth[i] * cosZenith + RADIUS * cosAzimuth[next] * cosZenith)]);
   }
+
+  this.twinkles = new Twinkles(gl, r, twinkles);
 
   this.positionsVBO = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, this.positionsVBO);
@@ -64,22 +72,29 @@ Tree.prototype.initShaders = function(gl) {
   var vertShaderSrc =
       'attribute vec3 a_position;' +
       'attribute vec3 a_normal;' +
+
       'uniform mat4 u_view_mtx;' +
       'uniform mat4 u_proj_mtx;' +
+      'uniform mat4 u_ortho_mtx;' +
+
       'varying vec3 v_normal;' +
+
       'void main() {' +
         'v_normal = a_normal;' +
-        'gl_Position = u_proj_mtx * u_view_mtx * vec4(a_position, 1.0);' +
+        'gl_Position = u_ortho_mtx * u_proj_mtx * u_view_mtx * vec4(a_position, 1.0);' +
       '}';
   var fragShaderSrc =
       'precision mediump float;' +
+
       'uniform vec3 u_light_vector;' +
+
       'varying vec3 v_normal;' +
+
       'void main() {' +
         'vec3 n_light_vector = normalize(u_light_vector);' +
         'vec3 n_normal = normalize(v_normal);' +
         'float lum = 0.66 - 0.33 * dot(n_light_vector, n_normal);' +
-        'gl_FragColor = lum * vec4(0.0, 1.0, 0.0, 1.0);' +
+        'gl_FragColor = lum * vec4(0.0, 0.8, 0.3, 1.0);' +
         'gl_FragColor[3] = 1.0;' +
       '}';
   this.shaderProgram = createShaderProgram(gl, vertShaderSrc, fragShaderSrc);
@@ -87,7 +102,8 @@ Tree.prototype.initShaders = function(gl) {
 
 Tree.prototype.draw = function(gl) {
   var projMatrix = perspectiveProjMatrix(500, 500);
-  var viewMatrix = lookAtMatrix(9, Math.PI / 6, 8);
+  var viewMatrix = lookAtMatrix(0, Math.PI / 4, 2.1);
+  var orthoMatrix = getOrthoMatrix(-0.6, 0.6, -0.2, 0.9);
 
   gl.useProgram(this.shaderProgram);
 
@@ -101,18 +117,22 @@ Tree.prototype.draw = function(gl) {
 
   var locViewMtx = gl.getUniformLocation(this.shaderProgram, "u_view_mtx");
   var locProjMtx = gl.getUniformLocation(this.shaderProgram, "u_proj_mtx");
+  var locOrthoMtx = gl.getUniformLocation(this.shaderProgram, "u_ortho_mtx");
   var locLightVec = gl.getUniformLocation(this.shaderProgram, "u_light_vector");
   gl.uniformMatrix4fv(locViewMtx, false, viewMatrix);
   gl.uniformMatrix4fv(locProjMtx, false, projMatrix);
+  gl.uniformMatrix4fv(locOrthoMtx, false, orthoMatrix);
   gl.uniform3fv(locLightVec, [-1, -1, -1]);
 
-  gl.drawArrays(gl.TRIANGLES, 0, this.NUM_LEVELS * this.NUM_SLICES * 3);
+  gl.drawArrays(gl.TRIANGLES, 0, this.NUM_SLICES * 3);
 
   // Disable all enabled.
   gl.bindBuffer(gl.ARRAY_BUFFER, null);
   gl.disableVertexAttribArray(Attrib.POSITION);
   gl.disableVertexAttribArray(Attrib.NORMAL);
   gl.useProgram(null);
+
+  this.twinkles.draw(gl, projMatrix, viewMatrix, orthoMatrix);
 };
 
 
@@ -126,7 +146,7 @@ function lookAtMatrix(eyeAzimuth, eyeZenith, eyeRadius) {
     y: sinZenith,
     z: cosAzimuth * cosZenith
   };
-  var xAxis = { x: zAxis.z / cosZenith, y: 0, z: -zAxis.x / cosZenith };
+  var xAxis = { x: cosAzimuth, y: 0, z: -sinAzimuth };
   var yAxis = {
     x: -sinAzimuth * sinZenith,
     y: cosZenith,
@@ -158,4 +178,22 @@ function perspectiveProjMatrix(viewWidth, viewHeight) {
           0, f, 0, 0,
           0, 0, (far + near) / (near - far), -1,
           0, 0, 2 * far * near / (near - far), 0];
+}
+
+function getOrthoMatrix(left, right, bottom, top) {
+  // (x=l, y=t) *------* (x=r, y=t)
+  //            |      |
+  //            |      |
+  // (x=l, y=b) *------* (x=r, y=b)
+  // To
+  //  (x=-1, y=1) *------* (x=1, y=1)
+  //              |      |
+  //              |      |
+  // (x=-1, y=-1) *------* (x=1, y=-1)
+  var rl = 1.0 / (right - left);
+  var tb = 1.0 / (top - bottom);
+  return [2.0 * rl, 0, 0, 0,
+          0, 2.0 * tb, 0, 0,
+          0, 0, 1, 0,
+          -(right + left) * rl, -(top + bottom) * tb, 0, 1];
 }

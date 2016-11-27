@@ -9,6 +9,7 @@
 
   <script src='tree.js'></script>
   <script src='shaders_factory.js'></script>
+  <script src='twinkles.js'></script>
 
   <script>
     $(document).ready(function() {
@@ -18,7 +19,7 @@
 
       var gl = null;
       if (window.WebGLRenderingContext) {
-        gl = canvas.getContext('webgl', {antialias: false});
+        gl = canvas.getContext('webgl');
       }
       if (!gl) {
         alert('WebGL initialization failed');
@@ -26,6 +27,8 @@
 
       gl.clearColor(0.76, 0.69, 0.47, 1.0);
       gl.enable(gl.DEPTH_TEST);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
       var tree = new Tree(gl);
