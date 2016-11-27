@@ -3,6 +3,31 @@ function Tree(gl) {
   this.initShaders(gl);
 }
 
+Tree.prototype.addTwinkles = function(gl, colors) {
+  var RADIUS = 0.31;
+  var TOP = 0.95;
+  var TWINKLE_RADUIS = 0.02;
+
+  var hs = [];
+  var period = 0.07;
+  for (var h = 0; h < TOP;) {
+    var r = RADIUS - RADIUS * h / TOP + TWINKLE_RADUIS;
+    hs.push(h);
+    h += ((TWINKLE_RADUIS + 0.02) / r) * period * 0.5 / Math.PI;
+  }
+
+  var centers = [];
+  var m = Math.min(colors.length, hs.length);
+  for (var i = 0; i < m; ++i) {
+    var h = hs.splice(Math.floor(Math.random() * hs.length), 1)[0];
+    var cos = Math.cos(2 * Math.PI * h / period);
+    var sin = Math.sin(2 * Math.PI * h / period);
+    var r = RADIUS - RADIUS * h / TOP + TWINKLE_RADUIS;
+    centers.push([r * sin, h, r * cos]);
+  }
+  this.twinkles = new Twinkles(gl, TWINKLE_RADUIS, centers, colors);
+};
+
 Tree.prototype.initVBOs = function(gl) {
   this.initTreeMesh(gl);
   this.initTrunkMesh();
@@ -45,7 +70,6 @@ Tree.prototype.initTreeMesh = function(gl) {
   var colors = [];
 
   var r = 0.02;
-  var twinkles = [];
   var azimuth = 0;
   var sinAzimuth = 0.0;
   var cosAzimuth = 1.0;
@@ -68,11 +92,6 @@ Tree.prototype.initTreeMesh = function(gl) {
                    -cosNormal * sinZenith);
     }
 
-    twinkles.push([
-      -r * sinNormal * sinZenith + 0.33 * RADIUS * (sinAzimuth + sinNextAzimuth),
-      r * cosZenith + 0.33 * TOP,
-      -r * cosNormal * sinZenith + 0.33 * RADIUS * (cosAzimuth + cosNextAzimuth)]);
-
     sinAzimuth = sinNextAzimuth;
     cosAzimuth = cosNextAzimuth;
     azimuth += step;
@@ -82,7 +101,6 @@ Tree.prototype.initTreeMesh = function(gl) {
     colors.push(0, 204, 77);
   }
 
-  this.twinkles = new Twinkles(gl, r, twinkles);
   this.crownCoords = positions;
   this.crownNormals = normals;
   this.crownColors = colors;

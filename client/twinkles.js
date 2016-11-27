@@ -1,4 +1,4 @@
-function Twinkles(gl, radius, twinkles) {
+function Twinkles(gl, radius, positions, colors) {
   // Each twinkle is a circle. Circle drawing on square. There are two
   // triangles in square:
   // 0 *------* 1
@@ -6,15 +6,18 @@ function Twinkles(gl, radius, twinkles) {
   //   | /    |
   // 3 *------* 2
   this.radius = radius;
-  this.numTwinkles = twinkles.length;
+  this.numTwinkles = positions.length;
   var centers = [];
   var indices = [];
-  twinkles.forEach(function(position) {
-    for (var i = 0; i < 6; ++i) {
-      centers.push(position[0], position[1], position[2]);
+  var colorIndices = [];
+  for (var i = 0; i < this.numTwinkles; ++i) {
+    for (var j = 0; j < 6; ++j) {
+      centers.push(positions[i][0], positions[i][1], positions[i][2]);
     }
     indices.push(0, 1, 3, 3, 1, 2);
-  });
+    colorIndices.push(colors[i], colors[i], colors[i],
+                      colors[i], colors[i], colors[i]);
+  }
 
   // Initialize VBOs.
   this.indicesVBO = gl.createBuffer();
@@ -24,6 +27,10 @@ function Twinkles(gl, radius, twinkles) {
   this.centersVBO = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, this.centersVBO);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(centers), gl.STATIC_DRAW);
+
+  this.colorsVBO = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, this.colorsVBO);
+  gl.bufferData(gl.ARRAY_BUFFER, new Uint8Array(colorIndices), gl.STATIC_DRAW);
 
   gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
@@ -37,6 +44,7 @@ Twinkles.prototype.initShaders = function(gl) {
 
       'attribute float a_index;' +
       'attribute vec3 a_center;' +
+      'attribute float a_color;' +
 
       'uniform mat4 u_view_mtx;' +
       'uniform mat4 u_proj_mtx;' +
@@ -45,6 +53,7 @@ Twinkles.prototype.initShaders = function(gl) {
       'uniform float u_radius;' +
 
       'varying vec3 v_position;' +
+      'varying float v_color;' +
 
       'mat4 transpose(mat4 m) {' +
         'vec4 col1 = m[0];' +
@@ -70,6 +79,7 @@ Twinkles.prototype.initShaders = function(gl) {
       '}' +
 
       'void main() {' +
+        'v_color = a_color;' +
         'v_position = GetPositionByIdx(a_index);' +
         'mat4 model_matrix = u_view_mtx;' +
         'model_matrix[3] = vec4(0.0, 0.0, 0.0, 1.0);' +
@@ -84,6 +94,17 @@ Twinkles.prototype.initShaders = function(gl) {
       'uniform float u_radius;' +
 
       'varying vec3 v_position;' +
+      'varying float v_color;' +
+
+      'vec4 GetColorByIdx(float idx) {' +
+        'if (idx == 0.0) {' +
+          'return vec4(0.45, 0.8, 0.8, 1.0);' +
+        '} else if (idx == 1.0) {' +
+          'return vec4(0.66, 0.33, 0.73, 1.0);' +
+        '} else {' +
+          'return vec4(0.7, 0.6, 0.2, 1.0);' +
+        '}' +
+      '}' +
 
       'void main() {' +
         'float d = length(v_position);' +
@@ -92,7 +113,7 @@ Twinkles.prototype.initShaders = function(gl) {
           '// L vector is (0.0, 0.0, 1.0).\n' +
           '// V vector is (0.0, 0.0, 1.0).\n' +
           'vec4 ambient = vec4(1.0, 1.0, 1.0, 1.0);' +
-          'vec4 diffuse = vec4(0.0, 0.0, 1.0, 1.0);' +
+          'vec4 diffuse = GetColorByIdx(v_color);' +
           'vec3 L = vec3(0.0, 0.0, 1.0);' +
 
           '// Ambient\n' +
@@ -105,7 +126,7 @@ Twinkles.prototype.initShaders = function(gl) {
           '// Specular\n' +
           'vec3 normal = vec3(v_position.x, v_position.y, z) / u_radius;' +
           'vec3 R = normalize(2.0 * normal.z * normal - L);' +
-          'gl_FragColor += 0.55 * pow(max(0.0, R.z), 0.99);' +
+          'gl_FragColor += 0.1 * pow(max(0.0, R.z), 0.99);' +
 
           'gl_FragColor.a = 1.0;' +
         '} else {' +
@@ -124,6 +145,7 @@ Twinkles.prototype.draw = function(gl, projMatrix, viewMatrix, orthoMatrix) {
   var locRadius = gl.getUniformLocation(this.shaderProgram, "u_radius");
   var locIndices = gl.getAttribLocation(this.shaderProgram, "a_index");
   var locCenters = gl.getAttribLocation(this.shaderProgram, "a_center");
+  var locColors = gl.getAttribLocation(this.shaderProgram, "a_color");
 
   gl.bindBuffer(gl.ARRAY_BUFFER, this.indicesVBO);
   gl.vertexAttribPointer(locIndices, 1, gl.UNSIGNED_BYTE, false, 0, 0);
@@ -132,6 +154,10 @@ Twinkles.prototype.draw = function(gl, projMatrix, viewMatrix, orthoMatrix) {
   gl.bindBuffer(gl.ARRAY_BUFFER, this.centersVBO);
   gl.vertexAttribPointer(locCenters, 3, gl.FLOAT, false, 0, 0);
   gl.enableVertexAttribArray(locCenters);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, this.colorsVBO);
+  gl.vertexAttribPointer(locColors, 1, gl.UNSIGNED_BYTE, false, 0, 0);
+  gl.enableVertexAttribArray(locColors);
 
   gl.uniformMatrix4fv(locViewMtx, false, viewMatrix);
   gl.uniformMatrix4fv(locProjMtx, false, projMatrix);
@@ -144,5 +170,6 @@ Twinkles.prototype.draw = function(gl, projMatrix, viewMatrix, orthoMatrix) {
   gl.bindBuffer(gl.ARRAY_BUFFER, null);
   gl.disableVertexAttribArray(locIndices);
   gl.disableVertexAttribArray(locCenters);
+  gl.disableVertexAttribArray(locColors);
   gl.useProgram(null);
 };

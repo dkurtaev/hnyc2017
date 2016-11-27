@@ -6,10 +6,15 @@
   <!-- jQuery -->
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
 
-
   <script src='https://hnyc2017.ddns.net:56582/tree.js'></script>
   <script src='https://hnyc2017.ddns.net:56582/shaders_factory.js'></script>
   <script src='https://hnyc2017.ddns.net:56582/twinkles.js'></script>
+
+  <style>
+    html, body {
+      height: 100%;
+    }
+  </style>
 
   <script>
     var gl = null;
@@ -18,18 +23,31 @@
     var eyeAzimuthInc = 0.01;
 
     function display() {
+      var canvas = document.getElementById('glCanvas');
+
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-      tree.draw(gl, eyeAzimuth, 500, 500);
+      tree.draw(gl, eyeAzimuth, canvas.width, canvas.height);
+
       eyeAzimuth += eyeAzimuthInc;
       if (eyeAzimuth >= 2 * Math.PI) {
         eyeAzimuth = 0.0;
       }
     }
 
-    $(document).ready(function() {
+    function initTwinkles(numFlagsByCommands) {
+      var colors = [];
+      for (var i = 0; i < 3; ++i) {
+        for (var j = 0, n = numFlagsByCommands[i]; j < n; ++j) {
+          colors.push(i);
+        }
+      }
+      tree.addTwinkles(gl, colors);
+    }
+
+    function init(numFlagsByCommands) {
       var canvas = document.getElementById('glCanvas');
-      canvas.width = 500;
-      canvas.height = 500;
+      canvas.width = canvas.scrollWidth;
+      canvas.height = canvas.scrollHeight;
 
       if (window.WebGLRenderingContext) {
         gl = canvas.getContext('webgl');
@@ -44,6 +62,7 @@
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
       tree = new Tree(gl);
+      initTwinkles(numFlagsByCommands);
 
       var interval = setInterval(display, 30);
       $(window).focus(function() {
@@ -52,13 +71,28 @@
       $(window).blur(function() {
         clearInterval(interval);
       });
+    }
 
+    $(document).ready(function() {
+      $.ajax({
+        type: 'GET',
+        url: 'https://hnyc2017.ddns.net:56582/statistics',
+        dataType: 'json'  // Expected response type.
+      }).fail(function() {
+        error('Потеряно соединение с сервером.');
+      }).done(function(response) {
+        if (!response.error) {
+          init(JSON.parse(response.numFlagsByCommands));
+        } else {
+          error('Ошибка: ' + response.error);
+        }
+      });
     });
   </script>
 </head>
 
 <body>
-  <canvas id="glCanvas"></canvas>
+  <canvas id="glCanvas" style="width: 100%; height: 100%"></canvas>
 </body>
 
 </html>

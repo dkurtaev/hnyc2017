@@ -3,9 +3,6 @@ var btoa = require('btoa');
 
 module.exports = PlayersDB;
 
-var numFlagsByCommands = [0, 0, 0];
-var numPlayersInCommands = [0, 0, 0];
-
 function log(msg) {
   console.log(new Date() + '] ' + msg);
 }
@@ -17,6 +14,9 @@ function PlayersDB() {
     password: 'secret',
     database: 'players_db'
   });
+
+  this.numFlagsByCommands = [0, 0, 0];
+  this.numPlayersInCommands = [0, 0, 0];
 
   this.connection.connect(function(err) {
     if (!err) {
@@ -45,21 +45,21 @@ PlayersDB.prototype.signUp = function(name, pass, callback) {
 
     // Choose command.
     var commandId = 0;
-    if (numFlagsByCommands[0] != numFlagsByCommands[1]) {
-      if (numFlagsByCommands[1] < numFlagsByCommands[0]) {
+    if (self.numFlagsByCommands[0] != self.numFlagsByCommands[1]) {
+      if (self.numFlagsByCommands[1] < self.numFlagsByCommands[0]) {
         commandId = 1;
       }
     } else {
-      if (numPlayersInCommands[1] < numPlayersInCommands[0]) {
+      if (self.numPlayersInCommands[1] < self.numPlayersInCommands[0]) {
         commandId = 1;
       }
     }
-    if (numFlagsByCommands[commandId] != numFlagsByCommands[2]) {
-      if (numFlagsByCommands[2] < numFlagsByCommands[commandId]) {
+    if (self.numFlagsByCommands[commandId] != self.numFlagsByCommands[2]) {
+      if (self.numFlagsByCommands[2] < self.numFlagsByCommands[commandId]) {
         commandId = 2;
       }
     } else {
-      if (numPlayersInCommands[2] < numPlayersInCommands[commandId]) {
+      if (self.numPlayersInCommands[2] < self.numPlayersInCommands[commandId]) {
         commandId = 2;
       }
     }
@@ -75,7 +75,7 @@ PlayersDB.prototype.signUp = function(name, pass, callback) {
           numFlags: 0,
           commandId: commandId
         };
-        numPlayersInCommands[commandId] += 1;
+        self.numPlayersInCommands[commandId] += 1;
         callback(null, newPlayer);
       } else {
         log(err);
@@ -104,11 +104,12 @@ PlayersDB.prototype.signIn = function(name, pass, callback) {
 };
 
 PlayersDB.prototype.incrementNumFlags = function(playerId, commandId) {
+  var self = this;
   var query = 'UPDATE players SET numFlags = numFlags + 1 ' +
               'WHERE id = ' + playerId + ';';
   this.connection.query(query, (err) => {
     if (!err) {
-      numFlagsByCommands[commandId] += 1;
+      self.numFlagsByCommands[commandId] += 1;
     } else {
       log(err);
     }
@@ -116,12 +117,13 @@ PlayersDB.prototype.incrementNumFlags = function(playerId, commandId) {
 };
 
 PlayersDB.prototype.getAllPlayers = function(callback) {
+  var self = this;
   var query = 'SELECT * FROM players;';
   this.connection.query(query, (err, rows) => {
     if (!err) {
       callback(null, rows.map(function(row) {
-        numFlagsByCommands[row.commandId] += row.numFlags;
-        numPlayersInCommands[row.commandId] += 1;
+        self.numFlagsByCommands[row.commandId] += row.numFlags;
+        self.numPlayersInCommands[row.commandId] += 1;
         return {
           id: row.id,
           name: row.name,
