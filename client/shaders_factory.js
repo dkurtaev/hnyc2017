@@ -1,6 +1,7 @@
 var Attrib = {
   POSITION: 0,
-  NORMAL: 1
+  NORMAL: 1,
+  COLOR: 2
 };
 
 function createShaderProgram(gl, vertShaderSource, fragShaderSource) {
