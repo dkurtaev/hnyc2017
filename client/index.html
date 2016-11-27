@@ -117,20 +117,32 @@
   <div class="container-fluid">
 
     <div style="margin: 20% auto 20% auto; width: 300px">
-      <p>Happy New Year Challenge 2017<br>v0.2</p>
+      <p>Happy New Year Challenge 2017<br>v0.3</p>
 
-    <div id="buttons" class="row">
-      <div class="col-xs-6">
+    <div id="buttons">
+      <div class="row">
+        <div class="col-xs-6">
+            <button class="btn btn-block btn-primary"
+                    onclick='$("#buttons").hide(); $("#sign_in_form").show()'>
+              Вход
+            </button>
+        </div>
+        <div class="col-xs-6">
           <button class="btn btn-block btn-primary"
-                  onclick='$("#buttons").hide(); $("#sign_in_form").show()'>
-            Вход
-          </button>
+                  onclick='$("#buttons").hide(); $("#sign_up_form").show()'>
+           Регистрация
+         </button>
+        </div>
       </div>
-      <div class="col-xs-6">
-        <button class="btn btn-block btn-primary"
-                onclick='$("#buttons").hide(); $("#sign_up_form").show()'>
-         Регистрация
-       </button>
+
+      <div class="row" style="margin-top: 10px">
+        <div class="col-xs-12">
+          <form action="https://hnyc2017.ddns.net:56582/fir_tree.html">
+            <button class="btn btn-block btn-success">
+              Статистика
+            </button>
+          </form>
+        </div>
       </div>
     </div>
 

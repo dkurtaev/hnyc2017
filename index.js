@@ -170,7 +170,15 @@ var callback = function(req, res) {
         break;
       }
 
-      case '/index.html': case '/map.html': {
+      case '/statistics': {
+        responseData.numFlagsByCommands =
+            JSON.stringify(playersDB.numFlagsByCommands);
+        res.end(JSON.stringify(responseData));
+        break;
+      }
+
+      case '/index.html': case '/map.html': case '/fir_tree.html':
+      case '/tree.js': case '/shaders_factory.js': case '/twinkles.js': {
         var callback = function(err, data) {
           res.end(!err ? data : RESPONSES.SERVER_ERR);
         };
