@@ -31,7 +31,7 @@ function PlayersDB() {
 // Append new player into database.
 PlayersDB.prototype.signUp = function(name, pass, callback) {
   var self = this;
-  var query = 'SELECT * FROM players WHERE name = "' + name + '"';
+  var query = 'SELECT * FROM players WHERE name like binary "' + name + '"';
   self.connection.query(query, function(err, rows) {
     if (err) {
       log(err);
@@ -87,7 +87,7 @@ PlayersDB.prototype.signUp = function(name, pass, callback) {
 
 PlayersDB.prototype.signIn = function(name, pass, callback) {
   var query = 'SELECT id FROM players WHERE ' +
-              'name = "' + name + '" and ' +
+              'name like binary "' + name + '" and ' +
               'pass = MD5("' + pass + '");';
   this.connection.query(query, function(err, rows) {
     if (!err) {

@@ -88,13 +88,20 @@
             updatePlayers();
             if (response.flagCaptured) {
               var comment = null;
+              var success = true;
               do {
+                success = true;
                 comment = prompt('Флаг захвачен! Вы можете оставить запись, ' +
                                  'которая будет видна другим игрокам:');
                 if (comment && comment.length > 140) {
-                  window.alert('Длина не должна превышать 140 символов.')
+                  success = false;
+                  window.alert('Длина не должна превышать 140 символов.');
                 }
-              } while (comment && comment.length > 140);
+                if (comment && comment.match(/[^a-zA-Z0-9.!, ()-+_*=?$:^/&%;]/)) {
+                  success = false;
+                  window.alert('Сообщение содержит недопустимые символы.');
+                }
+              } while (!success);
               if (comment) {
                 sendFlagComment(comment, position, response.capturedFlagId);
               }

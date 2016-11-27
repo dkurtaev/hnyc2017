@@ -318,16 +318,6 @@ var callback = function(req, res) {
             break;
           }
         }
-
-        fs.appendFile('geos.log', new Date() + '] ' + player.id + ' ' +
-                      playerData.position.lat + ' ' +
-                      playerData.position.lng + '\n',
-                      'utf8', (err) => {
-          if (err) {
-            log(err);
-          }
-        });
-
         res.end(JSON.stringify(responseData));
         break;
       }
