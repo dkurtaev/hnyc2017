@@ -99,7 +99,7 @@
                   success = false;
                   window.alert('Длина не должна превышать 140 символов.');
                 }
-                if (comment && comment.match(/[^a-zA-Z0-9.!, ()-+_*=?$:^/&%;]/)) {
+                if (comment && comment.match(/[^a-zA-Zа-яА-Я0-9.!, ()-+_*=?$:^/&%;]/)) {
                   success = false;
                   window.alert('Сообщение содержит недопустимые символы.');
                 }
@@ -177,6 +177,12 @@
           return !player.isOnline;
         });
 
+        var comparator = function(a, b) {
+          return a.numFlags < b.numFlags;
+        };
+        playersOnline.sort(comparator);
+        playersOffline.sort(comparator);
+
         var getHtmls = function(players, isOnline) {
           var isOnlineColor = (isOnline ? 'green' : 'red');
           var fontColor = (isOnline ? 'black' : 'gray');
@@ -232,10 +238,9 @@
             var flags = res.flags;
             flagsMarkers = res.flags.map(function(flag) {
               var messages = JSON.parse(flag.messages);
-              var icon = host + '/icon_' +
-                  (flag.captured ? 'gray.png' :
-                                   (messages.length > 0 ? 'green_star.png' :
-                                                          'green.png'));
+              var icon = host + '/icon_';
+              icon += flag.captured ? 'gray' : 'green';
+              icon += (messages.length > 0 ? '_star.png' : '.png');
               var marker = new google.maps.Marker({
                   position: flag.position,
                   map: map,
