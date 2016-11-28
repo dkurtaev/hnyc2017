@@ -46,6 +46,7 @@
     var flagsMarkers = [];
     var host = window.atob('aHR0cHM6Ly9obnljMjAxNy5kZG5zLm5ldDo1NjU4Mg==');
     var infoWindow = null;
+    var inc = 0;
 
     function error(msg) {
       window.alert(msg);
@@ -68,9 +69,10 @@
     function updateGeolocation() {
       navigator.geolocation.getCurrentPosition(function(pos) {
         var position = {
-          lat: pos.coords.latitude,
+          lat: pos.coords.latitude + inc,
           lng: pos.coords.longitude
         };
+        inc += 2e-4;
         playerMarker.setPosition(position);
 
         // Post player's location to server.
@@ -136,15 +138,25 @@
       get('flags', (res) => {
         var flags = res.flags;
         for (var i = 0, l = flagsMarkers.length; i < l; ++i) {
-          flagsMarkers[i].timeToAppearing = flags[i].timeToAppearing;
-          flagsMarkers[i].messages = JSON.parse(flags[i].messages);
+          var flag = flags[i];
+          var marker = flagsMarkers[i];
+          marker.timeToAppearing = flag.timeToAppearing;
+          marker.messages = JSON.parse(flag.messages);
 
-          if (flagsMarkers[i].captured && !flags[i].captured) {
-            flagsMarkers[i].setIcon(host + '/icon_green.png');
-            flagsMarkers[i].captured = false;
-          } else if (!flagsMarkers[i].captured && flags[i].captured) {
-            flagsMarkers[i].setIcon(host + '/icon_gray.png');
-            flagsMarkers[i].captured = true;
+          if (marker.captured && !flag.captured) {
+            if (marker.messages.length > 0) {
+              marker.setIcon(host + '/icon_green_star.png');
+            } else {
+              marker.setIcon(host + '/icon_green.png');
+            }
+            marker.captured = false;
+          } else if (!marker.captured && flag.captured) {
+            if (marker.messages.length > 0) {
+              marker.setIcon(host + '/icon_gray_star.png');
+            } else {
+              marker.setIcon(host + '/icon_gray.png');
+            }
+            marker.captured = true;
           }
         }
       });
@@ -179,7 +191,7 @@
                      '<span style="color:' + fontColor + '">' + player.name + '</span>' +
                    '</span>' +
                    '<span style="float: right">' +
-                     '<img src="' + commandIconSrc + '" style="width: 14px"> ' +
+                     '<img src="' + commandIconSrc + '" style="width: 17px"> ' +
                      '<span>' + numFlags + '</span>' +
                    '</span>';
           });
@@ -219,7 +231,11 @@
           get('flags', (res) => {
             var flags = res.flags;
             flagsMarkers = res.flags.map(function(flag) {
-              var icon = host + '/icon_' + (flag.captured ? 'gray.png' : 'green.png');
+              var messages = JSON.parse(flag.messages);
+              var icon = host + '/icon_' +
+                  (flag.captured ? 'gray.png' :
+                                   (messages.length > 0 ? 'green_star.png' :
+                                                          'green.png'));
               var marker = new google.maps.Marker({
                   position: flag.position,
                   map: map,
@@ -227,7 +243,7 @@
               });
               marker.captured = flag.captured;
               marker.timeToAppearing = flag.timeToAppearing;
-              marker.messages = JSON.parse(flag.messages);
+              marker.messages = messages;
 
               marker.addListener('click', function() {
                 var content = '';

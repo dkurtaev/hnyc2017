@@ -44,25 +44,7 @@ PlayersDB.prototype.signUp = function(name, pass, callback) {
     }
 
     // Choose command.
-    var commandId = 0;
-    if (self.numFlagsByCommands[0] != self.numFlagsByCommands[1]) {
-      if (self.numFlagsByCommands[1] < self.numFlagsByCommands[0]) {
-        commandId = 1;
-      }
-    } else {
-      if (self.numPlayersInCommands[1] < self.numPlayersInCommands[0]) {
-        commandId = 1;
-      }
-    }
-    if (self.numFlagsByCommands[commandId] != self.numFlagsByCommands[2]) {
-      if (self.numFlagsByCommands[2] < self.numFlagsByCommands[commandId]) {
-        commandId = 2;
-      }
-    } else {
-      if (self.numPlayersInCommands[2] < self.numPlayersInCommands[commandId]) {
-        commandId = 2;
-      }
-    }
+    var commandId = Math.floor(Math.random() * 3);
 
     // Insert new record into database.
     query = 'INSERT INTO players (id, name, pass, commandId) VALUES ' +

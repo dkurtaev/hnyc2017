@@ -145,7 +145,8 @@ var callback = function(req, res) {
       }
 
       case '/icon_purple.png': case '/icon_gold.png': case '/icon_blue.png':
-      case '/icon_gray.png': case '/icon_green.png': {
+      case '/icon_gray.png': case '/icon_green.png':
+      case '/icon_green_star.png': case '/icon_gray_star.png': {
         fs.readFile('images' + requestData.pathname, (err, data) => {
           if (!err) {
             res.writeHead(200, {'Content-Type': 'image/png'});
