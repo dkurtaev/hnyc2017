@@ -46,7 +46,6 @@
     var flagsMarkers = [];
     var host = window.atob('aHR0cHM6Ly9obnljMjAxNy5kZG5zLm5ldDo1NjU4Mg==');
     var infoWindow = null;
-    var inc = 0;
 
     function error(msg) {
       window.alert(msg);
@@ -69,10 +68,9 @@
     function updateGeolocation() {
       navigator.geolocation.getCurrentPosition(function(pos) {
         var position = {
-          lat: pos.coords.latitude + inc,
+          lat: pos.coords.latitude,
           lng: pos.coords.longitude
         };
-        inc += 2e-4;
         playerMarker.setPosition(position);
 
         // Post player's location to server.
@@ -85,9 +83,11 @@
           dataType: 'json',  // Expected response type.
         }).done(function(response) {
           if (!response.error) {
-            updateFlags();
-            updateLog();
-            updatePlayers();
+            updateFlags(function() {
+              updateLog(function() {
+                updatePlayers();
+              });
+            });
             if (response.flagCaptured) {
               var comment = null;
               var success = true;
@@ -134,7 +134,7 @@
     }
 
     // Number and positions of flags are same but captured state changes.
-    function updateFlags() {
+    function updateFlags(success) {
       get('flags', (res) => {
         var flags = res.flags;
         for (var i = 0, l = flagsMarkers.length; i < l; ++i) {
@@ -159,16 +159,22 @@
             marker.captured = true;
           }
         }
+        if (success) {
+          success();
+        }
       });
     }
 
-    function updateLog() {
+    function updateLog(success) {
       get('log', (res) => {
         $("#log").html(res.log);
+        if (success) {
+          success();
+        }
       });
     }
 
-    function updatePlayers() {
+    function updatePlayers(success) {
       get('players', (res) => {
         var playersOnline = res.players.filter(function(player) {
           return player.isOnline;
@@ -206,6 +212,9 @@
         var html = getHtmls(playersOnline, true).concat(
                    getHtmls(playersOffline, false)).join('<br>');
         $("#players").html(html);
+        if (success) {
+          success();
+        }
       });
     }
 
