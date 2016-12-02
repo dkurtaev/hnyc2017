@@ -25,17 +25,9 @@
       height: 100%;
     }
 
-    .red-circle {
-      width: 10px;
-      height: 10px;
-      background: red;
-      border-radius: 50%;
-    }
-
-    .green-circle {
-      width: 10px;
-      height: 10px;
-      background: green;
+    .circle {
+      width: 12px;
+      height: 12px;
       border-radius: 50%;
     }
 
@@ -53,10 +45,24 @@
     var playerMarker = null;
     var flagsMarkers = [];
     var host = window.atob('aHR0cHM6Ly9obnljMjAxNy5kZG5zLm5ldDo1NjU4Mg==');
+    var infoWindow = null;
 
     function error(msg) {
       window.alert(msg);
       window.location = 'index.html';
+    }
+
+    function sendFlagComment(msg, playerPosition, flagId) {
+      $.ajax({
+        type: 'POST',
+        url: host + '/flag_comment' + '?authKey=' + authKey,
+        data: JSON.stringify({
+          position: playerPosition,
+          msg: msg,
+          flagId: flagId
+        })
+      }).done(function(res) {
+      }).fail(function(err) {});
     }
 
     function updateGeolocation() {
@@ -68,21 +74,38 @@
         playerMarker.setPosition(position);
 
         // Post player's location to server.
-        var playerData = {
-          authKey: authKey,
-          position: position
-        };
-
         $.ajax({
           type: 'POST',
-          url: host + '/geolocation',
-          data: JSON.stringify(playerData),
+          url: host + '/geolocation' + '?authKey=' + authKey,
+          data: JSON.stringify({
+            position: position
+          }),
           dataType: 'json',  // Expected response type.
         }).done(function(response) {
           if (!response.error) {
-            updateFlags();
-            updateLog();
-            updatePlayers();
+            updateFlags(function() {
+              updatePlayers();
+            });
+            if (response.flagCaptured) {
+              var comment = null;
+              var success = true;
+              do {
+                success = true;
+                comment = prompt('Флаг захвачен! Вы можете оставить запись, ' +
+                                 'которая будет видна другим игрокам:');
+                if (comment && comment.length > 140) {
+                  success = false;
+                  window.alert('Длина не должна превышать 140 символов.');
+                }
+                if (comment && comment.match(/[^a-zA-Zа-яА-Я0-9.!, ()-+_*=?$:^/&%;]/)) {
+                  success = false;
+                  window.alert('Сообщение содержит недопустимые символы.');
+                }
+              } while (!success);
+              if (comment) {
+                sendFlagComment(comment, position, response.capturedFlagId);
+              }
+            }
           } else {
             error('Ошибка: ' + response.error);
           }
@@ -108,40 +131,39 @@
       });
     }
 
-    function updateFlags() {
+    // Number and positions of flags are same but captured state changes.
+    function updateFlags(success) {
       get('flags', (res) => {
         var flags = res.flags;
+        for (var i = 0, l = flagsMarkers.length; i < l; ++i) {
+          var flag = flags[i];
+          var marker = flagsMarkers[i];
+          marker.timeToAppearing = flag.timeToAppearing;
+          marker.messages = JSON.parse(flag.messages);
 
-        // Update flags markers.
-        var num = Math.min(flagsMarkers.length, flags.length);
-        for (var i = 0; i < num; ++i) {
-          flagsMarkers[i].setPosition(flags[i].position);
+          if (marker.captured && !flag.captured) {
+            if (marker.messages.length > 0) {
+              marker.setIcon(host + '/icon_green_star.png');
+            } else {
+              marker.setIcon(host + '/icon_green.png');
+            }
+            marker.captured = false;
+          } else if (!marker.captured && flag.captured) {
+            if (marker.messages.length > 0) {
+              marker.setIcon(host + '/icon_gray_star.png');
+            } else {
+              marker.setIcon(host + '/icon_gray.png');
+            }
+            marker.captured = true;
+          }
         }
-
-        if (flagsMarkers.length < flags.length) {
-          for (var i = flagsMarkers.length; i < flags.length; ++i) {
-            flagsMarkers.push(new google.maps.Marker({
-              position: flags[i].position,
-              map: map,
-              icon: 'https://maps.google.com/mapfiles/kml/pal2/icon4.png'
-            }));
-          }
-        } else if (flagsMarkers.length > flags.length) {
-          for (var i = flags.length; i < flagsMarkers.length; ++i) {
-            flagsMarkers[i].setMap(null);
-          }
-          flagsMarkers = flagsMarkers.slice(0, flags.length);
+        if (success) {
+          success();
         }
       });
     }
 
-    function updateLog() {
-      get('log', (res) => {
-        $("#log").html(res.log);
-      });
-    }
-
-    function updatePlayers() {
+    function updatePlayers(success) {
       get('players', (res) => {
         var playersOnline = res.players.filter(function(player) {
           return player.isOnline;
@@ -150,18 +172,28 @@
           return !player.isOnline;
         });
 
+        var comparator = function(a, b) {
+          return a.numFlags < b.numFlags;
+        };
+        playersOnline.sort(comparator);
+        playersOffline.sort(comparator);
+
         var getHtmls = function(players, isOnline) {
-          var indicator = (isOnline ? 'green-circle' : 'red-circle');
+          var isOnlineColor = (isOnline ? 'green' : 'red');
           var fontColor = (isOnline ? 'black' : 'gray');
           return players.map(function(player) {
+            var commandIconSrc = host + '/icon_' +
+                (player.commandId == 0 ? 'blue.png' :
+                (player.commandId == 1 ? 'purple.png' : 'gold.png'));
+            var numFlags = (player.numFlags < 10 ? '00' :
+                            player.numFlags < 100 ? '0' : '') + player.numFlags;
             return '<span style="float: left">' +
-                     '<img class="' + indicator + '"> ' +
+                     '<img class="circle" style="background:' + isOnlineColor + '"> ' +
                      '<span style="color:' + fontColor + '">' + player.name + '</span>' +
                    '</span>' +
                    '<span style="float: right">' +
-                     '<img src="https://maps.google.com/mapfiles/kml/pal2/icon4.png" ' +
-                          'style="width: 14px"> ' +
-                     '<span>' + player.numFlags + '</span>' +
+                     '<img src="' + commandIconSrc + '" style="width: 17px"> ' +
+                     '<span>' + numFlags + '</span>' +
                    '</span>';
           });
         };
@@ -169,6 +201,9 @@
         var html = getHtmls(playersOnline, true).concat(
                    getHtmls(playersOffline, false)).join('<br>');
         $("#players").html(html);
+        if (success) {
+          success();
+        }
       });
     }
 
@@ -181,7 +216,9 @@
           };
           var mapParams = {
             center: position,
-            zoom: 17
+            zoom: 17,
+            disableDefaultUI: true,
+            zoomControl: true
           };
           map = new google.maps.Map(document.getElementById("map"), mapParams);
 
@@ -190,12 +227,54 @@
             map: map
           });
 
-          var interval = setInterval(updateGeolocation, 1000);
-          $(window).focus(function() {
-            interval = setInterval(updateGeolocation, 1000);
+          infoWindow = new google.maps.InfoWindow({
+            maxWidth: 200
           });
-          $(window).blur(function() {
-            clearInterval(interval);
+
+          // Initialize flags.
+          get('flags', (res) => {
+            var flags = res.flags;
+            flagsMarkers = res.flags.map(function(flag) {
+              var messages = JSON.parse(flag.messages);
+              var icon = host + '/icon_';
+              icon += flag.captured ? 'gray' : 'green';
+              icon += (messages.length > 0 ? '_star.png' : '.png');
+              var marker = new google.maps.Marker({
+                  position: flag.position,
+                  map: map,
+                  icon: icon
+              });
+              marker.captured = flag.captured;
+              marker.timeToAppearing = flag.timeToAppearing;
+              marker.messages = messages;
+
+              marker.addListener('click', function() {
+                var content = '';
+                if (marker.captured) {
+                  content += 'Время до появления: ' +
+                      Math.ceil(marker.timeToAppearing / 60e+3) + ' мин.';
+                  if (marker.messages.length != 0) {
+                    content += '<br><br>';
+                  }
+                }
+                content += marker.messages.join('<br>');
+
+                if (content !== '') {
+                  infoWindow.setContent('<p>' + content + '</p>');
+                  infoWindow.open(map, marker);
+                }
+              });
+
+              return marker;
+            });
+
+            var interval = setInterval(updateGeolocation, 1000);
+            $(window).focus(function() {
+              interval = setInterval(updateGeolocation, 1000);
+            });
+            $(window).blur(function() {
+              clearInterval(interval);
+            });
           });
         });
       } else {
@@ -219,21 +298,13 @@
 
 <body>
 
-  <div class="container-fluid" style="width: 100%; height: 100%">
+  <div class="container-fluid full-height-no-pad" style="width: 100%; height: 100%">
 
-    <div id="map" style="height: 70%"></div>
+    <div id="map" style="width: 100%; height: 70%"></div>
 
-    <div class="row" style="height: 30%;">
-      <div class="col-xs-6 full-height-no-pad">
-        <div class="well pre-scrollable full-height-no-pad">
-          <pre id="log"></pre>
-        </div>
-      </div>
-
-      <div class="col-xs-6 full-height-no-pad">
-        <div class="well pre-scrollable full-height-no-pad">
-          <pre id="players"></pre>
-        </div>
+    <div class="full-height-no-pad" style="height: 30%;">
+      <div class="well pre-scrollable full-height-no-pad">
+        <pre id="players"></pre>
       </div>
     </div>
 

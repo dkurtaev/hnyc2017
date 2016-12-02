@@ -15,6 +15,9 @@ function PlayersDB() {
     database: 'players_db'
   });
 
+  this.numFlagsByCommands = [0, 0, 0];
+  this.numPlayersInCommands = [0, 0, 0];
+
   this.connection.connect(function(err) {
     if (!err) {
       log('Players database connected successfully.');
@@ -28,7 +31,7 @@ function PlayersDB() {
 // Append new player into database.
 PlayersDB.prototype.signUp = function(name, pass, callback) {
   var self = this;
-  var query = 'SELECT * FROM players WHERE name = "' + name + '"';
+  var query = 'SELECT * FROM players WHERE name like binary "' + name + '"';
   self.connection.query(query, function(err, rows) {
     if (err) {
       log(err);
@@ -39,15 +42,22 @@ PlayersDB.prototype.signUp = function(name, pass, callback) {
       callback('Player with the same name already exists.');
       return;
     }
-    query = 'INSERT INTO players (id, name, pass) VALUES ' +
-            '(NULL, "' + name + '", MD5("' + pass + '"));';
+
+    // Choose command.
+    var commandId = Math.floor(Math.random() * 3);
+
+    // Insert new record into database.
+    query = 'INSERT INTO players (id, name, pass, commandId) VALUES ' +
+            '(NULL, "' + name + '", MD5("' + pass + '"), ' + commandId + ');';
     self.connection.query(query, function(err, res) {
       if (!err) {
         var newPlayer = {
           id: res.insertId,
           name: name,
-          numFlags: 0
+          numFlags: 0,
+          commandId: commandId
         };
+        self.numPlayersInCommands[commandId] += 1;
         callback(null, newPlayer);
       } else {
         log(err);
@@ -59,7 +69,7 @@ PlayersDB.prototype.signUp = function(name, pass, callback) {
 
 PlayersDB.prototype.signIn = function(name, pass, callback) {
   var query = 'SELECT id FROM players WHERE ' +
-              'name = "' + name + '" and ' +
+              'name like binary "' + name + '" and ' +
               'pass = MD5("' + pass + '");';
   this.connection.query(query, function(err, rows) {
     if (!err) {
@@ -75,25 +85,32 @@ PlayersDB.prototype.signIn = function(name, pass, callback) {
   });
 };
 
-PlayersDB.prototype.updateNumFlags = function(playerId, numFlags) {
-  var query = 'UPDATE players SET numFlags = ' + numFlags +
-              ' WHERE id = ' + playerId + ';';
+PlayersDB.prototype.incrementNumFlags = function(playerId, commandId) {
+  var self = this;
+  var query = 'UPDATE players SET numFlags = numFlags + 1 ' +
+              'WHERE id = ' + playerId + ';';
   this.connection.query(query, (err) => {
-    if (err) {
+    if (!err) {
+      self.numFlagsByCommands[commandId] += 1;
+    } else {
       log(err);
     }
   });
 };
 
 PlayersDB.prototype.getAllPlayers = function(callback) {
+  var self = this;
   var query = 'SELECT * FROM players;';
   this.connection.query(query, (err, rows) => {
     if (!err) {
       callback(null, rows.map(function(row) {
+        self.numFlagsByCommands[row.commandId] += row.numFlags;
+        self.numPlayersInCommands[row.commandId] += 1;
         return {
           id: row.id,
           name: row.name,
-          numFlags: row.numFlags
+          numFlags: row.numFlags,
+          commandId: row.commandId
         };
       }));
     } else {
