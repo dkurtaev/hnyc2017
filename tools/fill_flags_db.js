@@ -8,18 +8,15 @@ var connection = mysql.createConnection({
   database: 'flags_db'
 });
 
-connection.connect(function(err) {
-  if (!err) {
-    console.log('Flags database connected successfully.');
-  } else {
-    console.log('Flags database connection failed.');
-  }
-});
-
 fs.readFile('markers.json', 'utf8', (err, data) => {
   if (!err) {
-    JSON.parse(data).forEach(function(position) {
+    connection.connect(function(err) {
+      if (err) {
+        console.log('Flags database connection failed.');
+      }
+    });
 
+    JSON.parse(data).forEach(function(position) {
       var query = 'INSERT INTO flags (id, lat, lng, messages) VALUES ' +
                   '(NULL,' + position.lat + ',' + position.lng + ',"[]");';
       connection.query(query, function(err) {
@@ -28,6 +25,8 @@ fs.readFile('markers.json', 'utf8', (err, data) => {
         }
       });
     });
+
+    connection.end();
   } else {
     console.log(err);
   }

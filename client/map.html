@@ -83,18 +83,25 @@
           dataType: 'json',  // Expected response type.
         }).done(function(response) {
           if (!response.error) {
-            updateFlags();
-            updateLog();
-            updatePlayers();
+            updateFlags(function() {
+              updatePlayers();
+            });
             if (response.flagCaptured) {
               var comment = null;
+              var success = true;
               do {
+                success = true;
                 comment = prompt('Флаг захвачен! Вы можете оставить запись, ' +
                                  'которая будет видна другим игрокам:');
                 if (comment && comment.length > 140) {
-                  window.alert('Длина не должна превышать 140 символов.')
+                  success = false;
+                  window.alert('Длина не должна превышать 140 символов.');
                 }
-              } while (comment && comment.length > 140);
+                if (comment && comment.match(/[^a-zA-Zа-яА-Я0-9.!, ()-+_*=?$:^/&%;]/)) {
+                  success = false;
+                  window.alert('Сообщение содержит недопустимые символы.');
+                }
+              } while (!success);
               if (comment) {
                 sendFlagComment(comment, position, response.capturedFlagId);
               }
@@ -125,31 +132,38 @@
     }
 
     // Number and positions of flags are same but captured state changes.
-    function updateFlags() {
+    function updateFlags(success) {
       get('flags', (res) => {
         var flags = res.flags;
         for (var i = 0, l = flagsMarkers.length; i < l; ++i) {
-          flagsMarkers[i].timeToAppearing = flags[i].timeToAppearing;
-          flagsMarkers[i].messages = JSON.parse(flags[i].messages);
+          var flag = flags[i];
+          var marker = flagsMarkers[i];
+          marker.timeToAppearing = flag.timeToAppearing;
+          marker.messages = JSON.parse(flag.messages);
 
-          if (flagsMarkers[i].captured && !flags[i].captured) {
-            flagsMarkers[i].setIcon(host + '/icon_green.png');
-            flagsMarkers[i].captured = false;
-          } else if (!flagsMarkers[i].captured && flags[i].captured) {
-            flagsMarkers[i].setIcon(host + '/icon_gray.png');
-            flagsMarkers[i].captured = true;
+          if (marker.captured && !flag.captured) {
+            if (marker.messages.length > 0) {
+              marker.setIcon(host + '/icon_green_star.png');
+            } else {
+              marker.setIcon(host + '/icon_green.png');
+            }
+            marker.captured = false;
+          } else if (!marker.captured && flag.captured) {
+            if (marker.messages.length > 0) {
+              marker.setIcon(host + '/icon_gray_star.png');
+            } else {
+              marker.setIcon(host + '/icon_gray.png');
+            }
+            marker.captured = true;
           }
+        }
+        if (success) {
+          success();
         }
       });
     }
 
-    function updateLog() {
-      get('log', (res) => {
-        $("#log").html(res.log);
-      });
-    }
-
-    function updatePlayers() {
+    function updatePlayers(success) {
       get('players', (res) => {
         var playersOnline = res.players.filter(function(player) {
           return player.isOnline;
@@ -157,6 +171,12 @@
         var playersOffline = res.players.filter(function(player) {
           return !player.isOnline;
         });
+
+        var comparator = function(a, b) {
+          return a.numFlags < b.numFlags;
+        };
+        playersOnline.sort(comparator);
+        playersOffline.sort(comparator);
 
         var getHtmls = function(players, isOnline) {
           var isOnlineColor = (isOnline ? 'green' : 'red');
@@ -172,7 +192,7 @@
                      '<span style="color:' + fontColor + '">' + player.name + '</span>' +
                    '</span>' +
                    '<span style="float: right">' +
-                     '<img src="' + commandIconSrc + '" style="width: 14px"> ' +
+                     '<img src="' + commandIconSrc + '" style="width: 17px"> ' +
                      '<span>' + numFlags + '</span>' +
                    '</span>';
           });
@@ -181,6 +201,9 @@
         var html = getHtmls(playersOnline, true).concat(
                    getHtmls(playersOffline, false)).join('<br>');
         $("#players").html(html);
+        if (success) {
+          success();
+        }
       });
     }
 
@@ -212,7 +235,10 @@
           get('flags', (res) => {
             var flags = res.flags;
             flagsMarkers = res.flags.map(function(flag) {
-              var icon = host + '/icon_' + (flag.captured ? 'gray.png' : 'green.png');
+              var messages = JSON.parse(flag.messages);
+              var icon = host + '/icon_';
+              icon += flag.captured ? 'gray' : 'green';
+              icon += (messages.length > 0 ? '_star.png' : '.png');
               var marker = new google.maps.Marker({
                   position: flag.position,
                   map: map,
@@ -220,7 +246,7 @@
               });
               marker.captured = flag.captured;
               marker.timeToAppearing = flag.timeToAppearing;
-              marker.messages = JSON.parse(flag.messages);
+              marker.messages = messages;
 
               marker.addListener('click', function() {
                 var content = '';
@@ -272,21 +298,13 @@
 
 <body>
 
-  <div class="container-fluid" style="width: 100%; height: 100%">
+  <div class="container-fluid full-height-no-pad" style="width: 100%; height: 100%">
 
-    <div id="map" style="height: 70%"></div>
+    <div id="map" style="width: 100%; height: 70%"></div>
 
-    <div class="row" style="height: 30%;">
-      <div class="col-xs-6 full-height-no-pad">
-        <div class="well pre-scrollable full-height-no-pad">
-          <pre id="log"></pre>
-        </div>
-      </div>
-
-      <div class="col-xs-6 full-height-no-pad">
-        <div class="well pre-scrollable full-height-no-pad">
-          <pre id="players"></pre>
-        </div>
+    <div class="full-height-no-pad" style="height: 30%;">
+      <div class="well pre-scrollable full-height-no-pad">
+        <pre id="players"></pre>
       </div>
     </div>
 

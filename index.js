@@ -25,8 +25,6 @@ var playersDB = new PlayersDB();
 var flags = [];
 var CAPTURE_RADIUS = 1e-7;  // Maximal squared distance for capturing flag.
 var FLAGS_TIMEOUT = 1800e+3;  // Time after which captured flags appears again.
-var eventsLog = [];
-var EVENTS_LOG_DEPTH = 10;
 var flagsDB = new FlagsDB();
 
 // Update is procedure with dropping inactive players and appearing flags.
@@ -50,19 +48,11 @@ function log(msg) {
   console.log(new Date() + '] ' + msg);
 }
 
-function logEvent(msg) {
-  eventsLog.unshift(msg);
-  while (eventsLog.length > EVENTS_LOG_DEPTH) {
-    eventsLog.pop();
-  }
-}
-
 var callback = function(req, res) {
   var player = null;
   var requestData = url.parse(req.url, true);
 
   if (requestData.pathname == '/flags' ||
-      requestData.pathname == '/log' ||
       requestData.pathname == '/players' ||
       requestData.pathname == '/flag_comment' ||
       requestData.pathname == '/geolocation') {
@@ -102,8 +92,6 @@ var callback = function(req, res) {
         log('Player offline: ' + player.name +
             ', ' + (playersOnline.length - numReleasedPlayers) +
             ' players total.');
-        logEvent('Player <b>' + player.name +
-                 '</b> is <span style="color: red">offline</span>');
         return false;
       }
     });
@@ -138,14 +126,9 @@ var callback = function(req, res) {
         break;
       }
 
-      case '/log': {
-        responseData.log = eventsLog.join('<br>');
-        res.end(JSON.stringify(responseData));
-        break;
-      }
-
       case '/icon_purple.png': case '/icon_gold.png': case '/icon_blue.png':
-      case '/icon_gray.png': case '/icon_green.png': {
+      case '/icon_gray.png': case '/icon_green.png':
+      case '/icon_green_star.png': case '/icon_gray_star.png': {
         fs.readFile('images' + requestData.pathname, (err, data) => {
           if (!err) {
             res.writeHead(200, {'Content-Type': 'image/png'});
@@ -256,8 +239,6 @@ var callback = function(req, res) {
               responseData.authKey = authKey;
               log('Player online: ' + player.name +
                   ', ' + playersOnline.length + ' players total.');
-              logEvent('Player <b>' + player.name +
-                       '</b> is <span style="color: green">online</span>');
             } else {
               if (!player.isActive) {
                 player.authKey = authKey;
@@ -312,22 +293,11 @@ var callback = function(req, res) {
             flags[i].captured = true;
             flags[i].captureTime = now;
             playersDB.incrementNumFlags(player.id, player.commandId);
-            logEvent('Player <b>' + player.name + '</b> captured flag!');
             responseData.flagCaptured = true;
             responseData.capturedFlagId = i;
             break;
           }
         }
-
-        fs.appendFile('geos.log', new Date() + '] ' + player.id + ' ' +
-                      playerData.position.lat + ' ' +
-                      playerData.position.lng + '\n',
-                      'utf8', (err) => {
-          if (err) {
-            log(err);
-          }
-        });
-
         res.end(JSON.stringify(responseData));
         break;
       }
