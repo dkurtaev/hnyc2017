@@ -89,7 +89,7 @@ var callback = function(req, res) {
       } else {
         player.isOnline = false;
         numReleasedPlayers += 1;
-        log('Player offline: ' + player.name +
+        log('Player offline: ' + player.name + '(' + player.commandId + ')' +
             ', ' + (playersOnline.length - numReleasedPlayers) +
             ' players total.');
         return false;
@@ -197,8 +197,8 @@ var callback = function(req, res) {
         }
         playersDB.signUp(playerData.name, playerData.pass, (err, newPlayer) => {
           if (!err) {
-            log('New player: ' + newPlayer.name +
-                ' in command ' + newPlayer.commandId);
+            log('New player: ' + newPlayer.name + '(' +
+                newPlayer.commandId + ')');
             newPlayer.authKey = null;
             newPlayer.isOnline = false;
             newPlayer.isActive = false;
@@ -237,7 +237,7 @@ var callback = function(req, res) {
               player.authKey = authKey;
               playersOnline.push(player);
               responseData.authKey = authKey;
-              log('Player online: ' + player.name +
+              log('Player online: ' + player.name + '(' + player.commandId + ')' +
                   ', ' + playersOnline.length + ' players total.');
             } else {
               if (!player.isActive) {
@@ -288,7 +288,7 @@ var callback = function(req, res) {
               Math.pow(playerData.position.lat - flags[i].position.lat, 2) +
               Math.pow(playerData.position.lng - flags[i].position.lng, 2);
           if (distance_sq <= CAPTURE_RADIUS) {
-            log('Player ' + player.name + ' captured flag ' + i);
+            log('Player ' + player.name + '(' + player.commandId + ') captured flag ' + i);
             player.numFlags += 1;
             flags[i].captured = true;
             flags[i].captureTime = now;
