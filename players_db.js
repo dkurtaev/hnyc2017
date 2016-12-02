@@ -17,6 +17,7 @@ function PlayersDB() {
 
   this.numFlagsByCommands = [0, 0, 0];
   this.numPlayersInCommands = [0, 0, 0];
+  this.newPlayerCommand = 0;
 
   this.connection.connect(function(err) {
     if (!err) {
@@ -44,7 +45,8 @@ PlayersDB.prototype.signUp = function(name, pass, callback) {
     }
 
     // Choose command.
-    var commandId = Math.floor(Math.random() * 3);
+    var commandId = self.newPlayerCommand;
+    self.newPlayerCommand = (self.newPlayerCommand + 1) % 3;
 
     // Insert new record into database.
     query = 'INSERT INTO players (id, name, pass, commandId) VALUES ' +

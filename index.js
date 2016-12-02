@@ -24,7 +24,7 @@ var ACTIVITY_TIMEOUT = 300e+3;
 var playersDB = new PlayersDB();
 var flags = [];
 var CAPTURE_RADIUS = 1e-7;  // Maximal squared distance for capturing flag.
-var FLAGS_TIMEOUT = 1800e+3;  // Time after which captured flags appears again.
+var FLAGS_TIMEOUT = 3600e+3;  // Time after which captured flags appears again.
 var flagsDB = new FlagsDB();
 
 // Update is procedure with dropping inactive players and appearing flags.
