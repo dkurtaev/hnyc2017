@@ -84,9 +84,7 @@
         }).done(function(response) {
           if (!response.error) {
             updateFlags(function() {
-              updateLog(function() {
-                updatePlayers();
-              });
+              updatePlayers();
             });
             if (response.flagCaptured) {
               var comment = null;
@@ -159,15 +157,6 @@
             marker.captured = true;
           }
         }
-        if (success) {
-          success();
-        }
-      });
-    }
-
-    function updateLog(success) {
-      get('log', (res) => {
-        $("#log").html(res.log);
         if (success) {
           success();
         }
@@ -309,21 +298,13 @@
 
 <body>
 
-  <div class="container-fluid" style="width: 100%; height: 100%">
+  <div class="container-fluid full-height-no-pad" style="width: 100%; height: 100%">
 
-    <div id="map" style="height: 70%"></div>
+    <div id="map" style="width: 100%; height: 70%"></div>
 
-    <div class="row" style="height: 30%;">
-      <div class="col-xs-6 full-height-no-pad">
-        <div class="well pre-scrollable full-height-no-pad">
-          <pre id="log"></pre>
-        </div>
-      </div>
-
-      <div class="col-xs-6 full-height-no-pad">
-        <div class="well pre-scrollable full-height-no-pad">
-          <pre id="players"></pre>
-        </div>
+    <div class="full-height-no-pad" style="height: 30%;">
+      <div class="well pre-scrollable full-height-no-pad">
+        <pre id="players"></pre>
       </div>
     </div>
 

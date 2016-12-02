@@ -19,7 +19,7 @@ Tree.prototype.addTwinkles = function(gl, colors) {
   var centers = [];
   var m = Math.min(colors.length, hs.length);
   for (var i = 0; i < m; ++i) {
-    var h = hs.splice(Math.floor(Math.random() * hs.length), 1)[0];
+    var h = hs.splice(Math.floor(rand() * hs.length), 1)[0];
     var cos = Math.cos(2 * Math.PI * h / period);
     var sin = Math.sin(2 * Math.PI * h / period);
     var r = RADIUS - RADIUS * h / TOP + TWINKLE_RADUIS;
@@ -287,4 +287,10 @@ function getOrthoMatrix(left, right, bottom, top) {
           0, 2.0 * tb, 0, 0,
           0, 0, 1, 0,
           -(right + left) * rl, -(top + bottom) * tb, 0, 1];
+}
+
+var seed = 324;
+function rand() {
+  seed = (321515 * seed + 95276) % 423789;
+  return seed / 423789;
 }
