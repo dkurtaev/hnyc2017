@@ -44,8 +44,11 @@ var RESPONSES = {
     JSON.stringify({status: 500, error: 'Internal server error.'})
 };
 
-function log(msg) {
-  console.log(new Date() + '] ' + msg);
+function log(msg, date) {
+  if (!date) {
+    date = new Date();
+  }
+  console.log(date + '] ' + msg);
 }
 
 var callback = function(req, res) {
@@ -91,7 +94,7 @@ var callback = function(req, res) {
         numReleasedPlayers += 1;
         log('Player offline: ' + player.name + '(' + player.commandId + ')' +
             ', ' + (playersOnline.length - numReleasedPlayers) +
-            ' players total.');
+            ' players total.', player.lastPostTime);
         return false;
       }
     });
@@ -101,7 +104,6 @@ var callback = function(req, res) {
       var flag = flags[i];
       if (flag.captured && now - flag.captureTime >= FLAGS_TIMEOUT) {
         flag.captured = false;
-        log('Flag ' + i + ' appeared.');
       }
     }
 
