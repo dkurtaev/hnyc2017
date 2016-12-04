@@ -47,9 +47,13 @@
     var host = window.atob('aHR0cHM6Ly9obnljMjAxNy5kZG5zLm5ldDo1NjU4Mg==');
     var infoWindow = null;
 
+    var alertShowed = false;
     function error(msg) {
-      window.alert(msg);
-      window.location = 'index.html';
+      if (!alertShowed) {
+        alertShowed = true;
+        window.alert(msg);
+        window.location = 'index.html';
+      }
     }
 
     function sendFlagComment(msg, playerPosition, flagId) {
