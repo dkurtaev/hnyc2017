@@ -54,6 +54,7 @@ function log(msg, date) {
 var callback = function(req, res) {
   var player = null;
   var requestData = url.parse(req.url, true);
+  var now = new Date();
 
   if (requestData.pathname == '/flags' ||
       requestData.pathname == '/players' ||
@@ -63,13 +64,15 @@ var callback = function(req, res) {
     player = playersOnline.find(function(player) {
       return player.authKey === requestData.query.authKey;
     });
-    if (player === undefined) {
+    if (player !== undefined) {
+      player.isActive = true;
+      player.lastPostTime = now;
+    } else {
       res.end(RESPONSES.UNAUTHORIZED);
       return;
     }
   }
 
-  var now = new Date();
   var responseData = {
     status: 200,  // Ok.
     error: null
@@ -237,12 +240,16 @@ var callback = function(req, res) {
             if (!player.isOnline) {
               player.isOnline = true;
               player.authKey = authKey;
+              player.isActive = true;
+              player.lastPostTime = now;
               playersOnline.push(player);
               responseData.authKey = authKey;
               log('Player online: ' + player.name + '(' + player.commandId + ')' +
                   ', ' + playersOnline.length + ' players total.');
             } else {
               if (!player.isActive) {
+                player.isActive = true;
+                player.lastPostTime = now;
                 player.authKey = authKey;
                 responseData.authKey = authKey;
               } else {
@@ -277,9 +284,6 @@ var callback = function(req, res) {
           res.end(RESPONSES.BAD_REQUEST);
           break;
         }
-
-        player.isActive = true;
-        player.lastPostTime = now;
 
         // Capture the flags.
         for (var i = 0, l = flags.length; i < l; ++i) {
