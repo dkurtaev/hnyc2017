@@ -20,7 +20,7 @@
   <title>HNYC2017</title>
   <link rel="icon" href="https://maps.google.com/mapfiles/kml/pal2/icon4.png">
 
-  <script>
+  <script type='text/javascript'>
     var host = window.atob('aHR0cHM6Ly9obnljMjAxNy5kZG5zLm5ldDo1NjU4Mg==');
 
     function isValid(name, pass, passCheck) {
@@ -96,7 +96,7 @@
       }).done(function(res) {
         if (!res.error) {
           var url = host + '/map.html?authKey=' + res.authKey;
-          window.location.replace(url);
+          window.location.assign(url);
         } else {
           window.alert('Ошибка: ' + res.error);
         }
@@ -137,7 +137,7 @@
 
       <div class="row" style="margin-top: 10px">
         <div class="col-xs-12">
-          <form action="https://hnyc2017.ddns.net:56582/fir_tree.html">
+          <form action="https://hnyc2017.ddns.net/fir_tree.html">
             <button class="btn btn-block btn-success">
               Статистика
             </button>

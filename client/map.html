@@ -36,10 +36,9 @@
       padding: 0;
       margin: 0;
     }
-
   </style>
 
-  <script>
+  <script type='text/javascript'>
     var map = null;
     var authKey = null;
     var playerMarker = null;
@@ -76,7 +75,7 @@
     }
 
     function setup() {
-      navigator.geolocation.watchPosition(function(pos) {
+      return navigator.geolocation.watchPosition(function(pos) {
         var position = {
           lat: pos.coords.latitude,
           lng: pos.coords.longitude
@@ -140,7 +139,7 @@
 
     // Number and positions of flags are same but captured state changes.
     function updateFlags(success) {
-      get('flags', (res) => {
+      get('flags', function(res) {
         var flags = res.flags;
         for (var i = 0, l = flagsMarkers.length; i < l; ++i) {
           var flag = flags[i];
@@ -171,7 +170,7 @@
     }
 
     function updatePlayers(success) {
-      get('players', (res) => {
+      get('players', function(res) {
         var playersOnline = res.players.filter(function(player) {
           return player.isOnline;
         });
@@ -217,8 +216,6 @@
     function init() {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(function(pos) {
-          setup();
-
           var position = {
             lat: pos.coords.latitude,
             lng: pos.coords.longitude
@@ -241,7 +238,7 @@
           });
 
           // Initialize flags.
-          get('flags', (res) => {
+          get('flags', function(res) {
             var flags = res.flags;
             flagsMarkers = res.flags.map(function(flag) {
               var messages = JSON.parse(flag.messages);
@@ -277,13 +274,44 @@
               return marker;
             });
 
+            var hidden, visibilityChange;
+            if (typeof document.hidden !== 'undefined') {
+              hidden = 'hidden';
+              visibilityChange = 'visibilitychange';
+            } else if (typeof document.msHidden !== 'undefined') {
+              hidden = 'msHidden';
+              visibilityChange = 'msvisibilitychange';
+            } else if (typeof document.webkitHidden !== 'undefined') {
+              hidden = 'webkitHidden';
+              visibilityChange = 'webkitvisibilitychange';
+            }
+
             var interval = setInterval(update, 1000);
-            $(window).focus(function() {
-              interval = setInterval(update, 1000);
-            });
-            $(window).blur(function() {
-              clearInterval(interval);
-            });
+            var geolocationId = setup();
+
+            function handleVisibilityChange() {
+              if (document[hidden]) {
+                navigator.geolocation.clearWatch(geolocationId);
+                clearInterval(interval);
+              } else {
+                interval = setInterval(update, 1000);
+                geolocationId = setup();
+              }
+            }
+            if (typeof document.addEventListener === 'undefined' ||
+                typeof document[hidden] === 'undefined') {
+              $(window).focus(function() {
+                interval = setInterval(update, 1000);
+                geolocationId = setup();
+              });
+              $(window).blur(function() {
+                navigator.geolocation.clearWatch(geolocationId);
+                clearInterval(interval);
+              });
+            } else {
+              document.addEventListener(visibilityChange,
+                                        handleVisibilityChange);
+            }
           });
         },
         function(err) {

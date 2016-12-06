@@ -15,10 +15,6 @@ function PlayersDB() {
     database: 'players_db'
   });
 
-  this.numFlagsByCommands = [0, 0, 0];
-  this.numPlayersInCommands = [0, 0, 0];
-  this.newPlayerCommand = 0;
-
   this.connection.connect(function(err) {
     if (!err) {
       log('Players database connected successfully.');
@@ -26,6 +22,15 @@ function PlayersDB() {
       log('Players database connection failed.');
     }
   });
+
+  var self = this;
+  setInterval(function() {
+    self.connection.query('SELECT 1;');
+  }, 5000);
+
+  this.numFlagsByCommands = [0, 0, 0];
+  this.numPlayersInCommands = [0, 0, 0];
+  this.newPlayerCommand = 0;
 };
 
 // Check name uniquness.

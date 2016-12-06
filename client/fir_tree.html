@@ -55,6 +55,9 @@
 
       if (window.WebGLRenderingContext) {
         gl = canvas.getContext('webgl');
+        if (!gl) {
+          gl = canvas.getContext('experimental-webgl');
+        }
       }
       if (!gl) {
         alert('WebGL initialization failed');

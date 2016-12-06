@@ -21,6 +21,11 @@ function FlagsDB() {
       log('Flags database connection failed.');
     }
   });
+
+  var self = this;
+  setInterval(function() {
+    self.connection.query('SELECT 1;');
+  }, 5000);
 };
 
 FlagsDB.prototype.updateMessages = function(flag) {
