@@ -55,12 +55,11 @@
       }
     }
 
-    function sendFlagComment(msg, playerPosition, flagId) {
+    function sendFlagComment(msg, flagId) {
       $.ajax({
         type: 'POST',
         url: host + '/flag_comment' + '?authKey=' + authKey,
         data: JSON.stringify({
-          position: playerPosition,
           msg: msg,
           flagId: flagId
         })
@@ -109,7 +108,7 @@
                 }
               } while (!success);
               if (comment) {
-                sendFlagComment(comment, position, response.capturedFlagId);
+                sendFlagComment(comment, response.capturedFlagId);
               }
             }
           } else {

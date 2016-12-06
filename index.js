@@ -314,24 +314,16 @@ var callback = function(req, res) {
 
       case '/flag_comment': {
         var playerData = JSON.parse(data);
-        if (!playerData.hasOwnProperty('position') ||
-            !playerData.position.hasOwnProperty('lat') ||
-            !playerData.position.hasOwnProperty('lng') ||
-            !playerData.hasOwnProperty('msg') ||
+        if (!playerData.hasOwnProperty('msg') ||
             !playerData.hasOwnProperty('flagId')) {
           res.end(RESPONSES.BAD_REQUEST);
           break;
         }
 
         var flagId = playerData.flagId;
-        var distance_sq =
-            Math.pow(playerData.position.lat - flags[flagId].position.lat, 2) +
-            Math.pow(playerData.position.lng - flags[flagId].position.lng, 2);
-        if (distance_sq <= CAPTURE_RADIUS) {
-          var msg = '<b>' + player.name + '</b>: ' + playerData.msg;
-          flags[flagId].messages.push(msg);
-          flagsDB.updateMessages(flags[flagId]);
-        }
+        var msg = '<b>' + player.name + '</b>: ' + playerData.msg;
+        flags[flagId].messages.push(msg);
+        flagsDB.updateMessages(flags[flagId]);
 
         res.end(RESPONSES.OK);
         break;
